@@ -5,7 +5,8 @@ name: Promote stage
 #   2. runs commit lint, format, lint, typecheck and build
 #   3. posts an automated review (Claude, when a key is configured)
 #   4. posts/updates a CI report comment
-#   5. merges with a merge commit (never squash) when every check passed
+#   5. merges with a merge commit (never squash) when every check passed.
+#      A feature branch more than one commit ahead of dev is not merged.
 on:
   workflow_call:
     inputs:
@@ -56,6 +57,7 @@ jobs:
       pr: ${{ steps.pr.outputs.pr }}
       sha: ${{ steps.range.outputs.sha }}
       skip: ${{ steps.range.outputs.skip }}
+      one_commit: ${{ steps.range.outputs.one_commit }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -63,14 +65,32 @@ jobs:
       - name: Compare branches
         id: range
         run: |
-          git fetch --quiet origin "${{ inputs.base }}" "${{ inputs.head }}"
+          git fetch --quiet origin "${{ inputs.base }}"
+          if ! git fetch --quiet origin "${{ inputs.head }}"; then
+            merged=$(gh pr list --head "${{ inputs.head }}" --base "${{ inputs.base }}" --state merged --json number --jq '.[0].number // empty')
+            if [ -n "$merged" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "one_commit=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::PR #$merged (${{ inputs.head }} → ${{ inputs.base }}) is already merged — nothing to promote."
+              exit 0
+            fi
+            echo "::error::Could not fetch ${{ inputs.head }}."
+            exit 1
+          fi
           ahead=$(git rev-list --count "origin/${{ inputs.base }}..origin/${{ inputs.head }}")
+          echo "ahead=$ahead" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse "origin/${{ inputs.head }}")" >> "$GITHUB_OUTPUT"
           if [ "$ahead" = "0" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "one_commit=true" >> "$GITHUB_OUTPUT"
             echo "::notice::${{ inputs.head }} has no commits that ${{ inputs.base }} doesn't already have — nothing to promote."
+          elif [ "${{ inputs.kind }}" = "feature" ] && [ "$ahead" -gt 1 ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "one_commit=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${{ inputs.head }} is $ahead commits ahead of ${{ inputs.base }}. Each commit needs its own branch; this pull request will not be merged."
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "one_commit=true" >> "$GITHUB_OUTPUT"
             echo "${{ inputs.head }} is $ahead commit(s) ahead of ${{ inputs.base }}"
           fi
       - name: Find or create pull request
@@ -102,6 +122,21 @@ jobs:
             echo "Using existing PR #$pr"
           fi
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
+      - name: Require one commit per branch
+        if: steps.range.outputs.one_commit == 'false'
+        env:
+          PR: ${{ steps.pr.outputs.pr }}
+          AHEAD: ${{ steps.range.outputs.ahead }}
+        run: |
+          marker='<!-- credexus-one-commit -->'
+          body=$(printf '%s\n### One commit per branch\n\nEach commit needs its own branch. `%s` is %s commits ahead of `%s`. The pipeline only merges a `feat/` or `fix/` branch that adds a single commit, so this pull request will not be merged. Open a new branch from the latest `%s` for each commit.\n' \
+            "$marker" "${{ inputs.head }}" "$AHEAD" "${{ inputs.base }}" "${{ inputs.base }}")
+          comment_id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --jq "[.[] | select(.body | contains(\"$marker\"))][0].id // empty")
+          if [ -n "$comment_id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --raw-field body="$body" >/dev/null
+          else
+            gh pr comment "$PR" --body "$body"
+          fi
 
   checks:
     name: Lint, typecheck & build
@@ -130,7 +165,9 @@ jobs:
         id: commits
         if: inputs.kind == 'feature'
         continue-on-error: true
-        run: npx commitlint --from "origin/${{ inputs.base }}" --to HEAD --verbose
+        run: |
+          git fetch --quiet origin "${{ inputs.base }}"
+          npx commitlint --from "origin/${{ inputs.base }}" --to HEAD --verbose
       - name: Format
         id: format
         continue-on-error: true
@@ -239,6 +276,7 @@ jobs:
           BUILD: ${{ needs.checks.outputs.build }}
           SIZE_TABLE: ${{ needs.checks.outputs.size }}
           AUTO_MERGE: ${{ inputs.auto_merge }}
+          ONE_COMMIT: ${{ needs.prepare.outputs.one_commit }}
         with:
           script: |
             const env = process.env;
@@ -251,12 +289,15 @@ jobs:
               ["Typecheck", env.TYPECHECK, "npm run typecheck"],
               ["Production build", env.BUILD, "npm run build"],
             ];
+            const oneCommit = env.ONE_COMMIT !== "false";
             const failed = rows.some(([, o]) => o === "failure") || !env.BUILD;
-            const next = failed
-              ? "Fix the failing checks and push again — the pipeline re-runs automatically."
-              : env.AUTO_MERGE === "true"
-                ? `All checks passed — merging with a merge commit${env.KIND === "feature" ? ", then promoting `dev` → `main`" : " and deploying to production"}.`
-                : "All checks passed — ready for manual review and merge (auto-merge is off).";
+            const next = !oneCommit
+              ? "Each commit needs its own branch. This branch is more than one commit ahead of the base, so the pipeline will not merge it."
+              : failed
+                ? "Fix the failing checks and push again — the pipeline re-runs automatically."
+                : env.AUTO_MERGE === "true"
+                  ? `All checks passed — merging with a merge commit${env.KIND === "feature" ? ", then promoting `dev` → `main`" : " and deploying to production"}.`
+                  : "All checks passed — ready for manual review and merge (auto-merge is off).";
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
               marker,
@@ -283,6 +324,7 @@ jobs:
     needs: [prepare, checks, review, report]
     if: >-
       always() && inputs.auto_merge && needs.prepare.outputs.skip == 'false' &&
+      needs.prepare.outputs.one_commit == 'true' &&
       needs.checks.result == 'success'
     runs-on: ubuntu-latest
     concurrency:
@@ -297,6 +339,12 @@ jobs:
           PR: ${{ needs.prepare.outputs.pr }}
           SHA: ${{ needs.prepare.outputs.sha }}
         run: |
+          state=$(gh pr view "$PR" --json state --jq .state)
+          if [ "$state" = "MERGED" ]; then
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR #$PR is already merged — nothing to do."
+            exit 0
+          fi
           args=(--merge --match-head-commit "$SHA" --repo "$GITHUB_REPOSITORY")
           ${{ inputs.delete_branch }} && args+=(--delete-branch)
           gh pr merge "$PR" "${args[@]}"
