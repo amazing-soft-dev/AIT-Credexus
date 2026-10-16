@@ -10,14 +10,15 @@ import {
 } from "react-router";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
+import { LightRays } from "~/components/motion/light-rays";
 import { SmoothScroll } from "~/components/motion/smooth-scroll";
 import type { Route } from "./+types/root";
 import * as React from "react";
 import "./app.css";
 
 export const links: LinksFunction = () => [
-  { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
   { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
+  { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
   { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
   { rel: "manifest", href: "/site.webmanifest" },
 ];
@@ -72,8 +73,10 @@ export default function App() {
     <LazyMotion features={loadMotionFeatures} strict>
       <MotionConfig reducedMotion="user">
         <SmoothScroll />
+        {/* Avenna layout background: animated light rays + drifting particles over the top 800px */}
+        <LightRays particles={80} className="absolute inset-x-0 top-0 h-[800px]" />
         <Header />
-        <main id="main" className="overflow-x-clip">
+        <main id="main" className="relative overflow-x-clip">
           <Outlet />
         </main>
         <Footer />

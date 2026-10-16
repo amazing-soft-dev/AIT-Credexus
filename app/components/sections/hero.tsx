@@ -42,52 +42,40 @@ export function Hero() {
   return (
     <section ref={ref} aria-label="Introduction" className="relative h-[175svh]">
       <div className="sticky top-0 flex h-svh items-center justify-center overflow-hidden">
-        {/* ambient glow behind the card */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-[radial-gradient(55%_45%_at_50%_55%,rgb(63_79_217/0.35),transparent_70%)]"
-        />
-
-        {/* Graphic: grid card + hands, zooms on scroll. Outer div centres, inner m.div animates. */}
-        <div className="animate-fade-in absolute top-[79%] left-1/2 w-[92vw] max-w-[1100px] -translate-x-1/2 -translate-y-1/2 sm:top-1/2 sm:w-[78vw] lg:w-[56vw]">
+        {/* Graphic: the grid card (with its own glowing frame) held by two hands. Geometry is
+            Avenna's: card 56% wide (70% on tablet/mobile); hands anchored to the card's bottom
+            corners — left 161/672 wide, 111px out, 119px below; right 176/672, 111px out, 127px
+            below (mobile: 100/95px wide, 64/58px out). Outer div centres, m.div zooms on scroll. */}
+        <div className="animate-fade-in absolute top-[81%] left-1/2 w-[70vw] max-w-[1180px] -translate-x-1/2 -translate-y-1/2 sm:top-1/2 lg:w-[56vw]">
           <m.div
             aria-hidden
-            className="relative aspect-[2604/1636]"
+            className="relative aspect-[2664/1696]"
             style={{ scale, y, opacity: graphicOpacity }}
           >
-            <div className="absolute inset-0 overflow-hidden rounded-[22px] shadow-[0_0_0_1px_rgb(160_175_255/0.35),0_0_40px_-8px_rgb(90_107_255/0.6)] sm:rounded-[28px]">
-              <picture>
-                <source media="(min-width: 1440px)" srcSet="/images/hero-grid-2560.webp" />
-                <source media="(min-width: 810px)" srcSet="/images/hero-grid-1920.webp" />
-                <img
-                  src="/images/hero-grid-1280.webp"
-                  alt=""
-                  width={1920}
-                  height={1206}
-                  fetchPriority="high"
-                  decoding="async"
-                  className="size-full object-cover"
-                />
-              </picture>
-              <div className="absolute inset-0 bg-gradient-to-b from-[#06071a]/55 via-transparent to-[#06071a]/20" />
-            </div>
             <img
-              src="/images/hand-left.webp"
+              src="/images/hero-grid-2560.png"
               alt=""
-              width={340}
-              height={764}
-              loading="lazy"
+              width={2664}
+              height={1696}
+              fetchPriority="high"
               decoding="async"
-              className="pointer-events-none absolute top-[43%] -left-[13%] w-[24%] [mask-image:linear-gradient(to_bottom,black_55%,transparent_92%)]"
+              className="relative size-full"
             />
             <img
-              src="/images/hand-right.webp"
+              src="/images/hand-left.png"
               alt=""
-              width={370}
-              height={780}
-              loading="lazy"
+              width={644}
+              height={1448}
               decoding="async"
-              className="pointer-events-none absolute top-[31%] -right-[14%] w-[26%] [mask-image:linear-gradient(to_bottom,black_55%,transparent_92%)]"
+              className="pointer-events-none absolute -bottom-[68%] -left-[23.4%] z-[1] w-[36.6%] [mask-image:linear-gradient(to_bottom,black_52%,transparent_86%)] sm:-bottom-[27.8%] sm:-left-[16.5%] sm:w-[24%]"
+            />
+            <img
+              src="/images/hand-right.png"
+              alt=""
+              width={704}
+              height={1484}
+              decoding="async"
+              className="pointer-events-none absolute -right-[21.2%] -bottom-[68%] z-[1] w-[34.8%] [mask-image:linear-gradient(to_bottom,black_52%,transparent_86%)] sm:-right-[16.5%] sm:-bottom-[29.7%] sm:w-[26.2%]"
             />
           </m.div>
         </div>
