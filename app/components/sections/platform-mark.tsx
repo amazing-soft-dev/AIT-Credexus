@@ -6,14 +6,14 @@ const hues = [232, 245, 220, 258, 210, 270];
 /** Logo slot: renders /platforms/<slug>.svg when available, else a monogram tile. */
 export function PlatformMark({ platform, className }: { platform: Platform; className?: string }) {
   if (platform.logo) {
+    const ext = platform.logoExt ?? "svg";
     return (
       <img
-        src={`/platforms/${platform.slug}.svg`}
+        src={`/platforms/${platform.slug}.${ext}`}
         alt=""
-        width={32}
         height={32}
         loading="lazy"
-        className={cn("size-8 rounded-lg object-contain", className)}
+        className={cn("h-8 w-auto max-w-[8rem] shrink-0 object-contain", className)}
       />
     );
   }

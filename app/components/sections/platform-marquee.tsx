@@ -12,7 +12,7 @@ export function PlatformMarquee() {
           id="platforms-heading"
           className="text-subtle text-center text-xs font-medium tracking-[0.2em] uppercase"
         >
-          Platforms our candidates work on
+          Our Partners
         </h2>
       </div>
       <div className="mt-8 flex flex-col gap-1">

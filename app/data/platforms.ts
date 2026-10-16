@@ -2,11 +2,12 @@
  * Platforms our candidates work on.
  *
  * IMPORTANT: Credexus is an independent recruiting agency. These descriptions are
- * intentionally general. Do not add pay rates, logos or "partner" claims for a
- * platform unless you have a written agreement that allows it.
+ * intentionally general. Do not add pay rates. Listing a platform is not an
+ * endorsement; trademarks belong to their owners.
  *
- * Logos: drop an SVG at /public/platforms/<slug>.svg and set `logo: true` to show it.
- * Until then a monogram tile is rendered next to the platform name.
+ * Logos: a file at /public/platforms/<slug>.svg (or .png) with `logo: true`.
+ * Marks are copied from each company's public site. A typeset wordmark is used
+ * only when that brand does not publish a clean mark.
  */
 export type Platform = {
   slug: string;
@@ -18,11 +19,14 @@ export type Platform = {
   workTypes: string[];
   skills: string[];
   logo?: boolean;
+  /** Set when the file under /platforms is not an SVG. */
+  logoExt?: "png";
 };
 
 export const platforms: Platform[] = [
   {
     slug: "outlier",
+    logo: true,
     name: "Outlier",
     operator: "Scale AI",
     category: "AI training platform",
@@ -33,6 +37,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "surge-ai",
+    logo: true,
     name: "Surge AI",
     category: "Human data lab",
     summary:
@@ -42,6 +47,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "mercor",
+    logo: true,
     name: "Mercor",
     category: "Expert marketplace",
     summary:
@@ -51,6 +57,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "turing",
+    logo: true,
     name: "Turing",
     category: "Talent network",
     summary:
@@ -60,6 +67,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "micro1",
+    logo: true,
     name: "micro1",
     category: "Expert marketplace",
     summary:
@@ -69,6 +77,8 @@ export const platforms: Platform[] = [
   },
   {
     slug: "braintrust",
+    logo: true,
+    logoExt: "png",
     name: "Braintrust",
     category: "Talent network",
     summary:
@@ -78,6 +88,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "alignerr",
+    logo: true,
     name: "Alignerr",
     operator: "Labelbox",
     category: "AI training platform",
@@ -88,6 +99,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "dataannotation",
+    logo: true,
     name: "DataAnnotation.tech",
     category: "AI training platform",
     summary:
@@ -97,6 +109,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "handshake-ai",
+    logo: true,
     name: "Handshake AI",
     operator: "Handshake",
     category: "Expert marketplace",
@@ -107,6 +120,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "mindrift",
+    logo: true,
     name: "Mindrift",
     operator: "Toloka",
     category: "AI training platform",
@@ -117,6 +131,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "toloka-ai",
+    logo: true,
     name: "Toloka AI",
     category: "Human data lab",
     summary:
@@ -126,6 +141,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "afterquery",
+    logo: true,
     name: "AfterQuery",
     category: "Human data lab",
     summary:
@@ -135,6 +151,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "opentrain-ai",
+    logo: true,
     name: "OpenTrain AI",
     category: "Expert marketplace",
     summary:
@@ -144,6 +161,8 @@ export const platforms: Platform[] = [
   },
   {
     slug: "rws-trainai",
+    logo: true,
+    logoExt: "png",
     name: "RWS TrainAI",
     operator: "RWS",
     category: "AI training platform",
@@ -154,6 +173,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "mindy",
+    logo: true,
     name: "Mindy",
     operator: "Centific",
     category: "AI training platform",
@@ -164,6 +184,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "meridial",
+    logo: true,
     name: "Meridial",
     operator: "Invisible",
     category: "AI training platform",
@@ -174,6 +195,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "workada",
+    logo: true,
     name: "Workada",
     category: "Expert marketplace",
     summary:
@@ -183,6 +205,8 @@ export const platforms: Platform[] = [
   },
   {
     slug: "10x-team",
+    logo: true,
+    logoExt: "png",
     name: "10x Team",
     category: "Talent network",
     summary:
@@ -192,6 +216,7 @@ export const platforms: Platform[] = [
   },
   {
     slug: "terac",
+    logo: true,
     name: "Terac",
     category: "Expert marketplace",
     summary: "A platform connecting experts with paid AI data and evaluation work.",
