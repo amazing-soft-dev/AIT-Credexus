@@ -7,8 +7,8 @@ name: Pipeline
 #                                                                          │
 #                              PR dev → main ◄─────────────────────────────┘
 #                                   │
-#                              checks + review ──► merge (merge commit) ──► deploy to Vercel
-#                                                                          │
+#                              checks + review ──► merge (merge commit)
+#                                          │
 #                              delete the feature branch ◄─────────────────┘
 #
 # A merge made with GITHUB_TOKEN does not start a new workflow, so dev → main
@@ -93,18 +93,11 @@ jobs:
       auto_merge: ${{ vars.AUTO_MERGE_TO_MAIN != 'false' }}
     secrets: inherit
 
-  deploy:
-    name: Deploy
-    needs: release
-    if: always() && needs.release.outputs.merged == 'true'
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit
-
   cleanup:
     name: Delete feature branch
-    needs: [feature, release, deploy]
+    needs: [feature, release]
     # Deleting the head ref cancels this run. Wait until release has finished
-    # (and deploy, which shares the run) so GitHub does not cancel dev → main.
+    # so GitHub does not cancel dev → main.
     if: >-
       always() &&
       needs.feature.outputs.merged == 'true' &&
