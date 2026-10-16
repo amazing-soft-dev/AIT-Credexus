@@ -1,11 +1,36 @@
 import { AnimatePresence, m } from "framer-motion";
-import { ArrowRight, Menu, X } from "lucide-react";
+import { ArrowRight, Menu, Moon, Sun, X } from "lucide-react";
 import * as React from "react";
 import { Link, NavLink, useLocation } from "react-router";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { nav } from "~/data/site";
+import { applyTheme, readTheme, useClientLayoutEffect, type Theme } from "~/lib/theme";
 import { cn } from "~/lib/utils";
 import { Logo } from "./logo";
+
+function ThemeToggle() {
+  const [theme, setTheme] = React.useState<Theme>("dark");
+
+  useClientLayoutEffect(() => {
+    setTheme(readTheme());
+  }, []);
+
+  const next: Theme = theme === "dark" ? "light" : "dark";
+
+  return (
+    <button
+      type="button"
+      className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "size-9")}
+      aria-label={next === "light" ? "Switch to light theme" : "Switch to dark theme"}
+      onClick={() => {
+        applyTheme(next);
+        setTheme(next);
+      }}
+    >
+      {theme === "dark" ? <Sun className="!size-4" /> : <Moon className="!size-4" />}
+    </button>
+  );
+}
 
 export function Header() {
   const [open, setOpen] = React.useState(false);
@@ -20,21 +45,27 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const raised = scrolled || open;
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5">
+    <header className="fixed inset-x-0 top-0 z-50">
       <div
         className={cn(
-          "mx-auto flex h-14 max-w-6xl items-center justify-between rounded-full border px-3 pl-5 transition-all duration-300",
-          scrolled || open
-            ? "border-border bg-background/75 shadow-[0_10px_40px_-15px_rgb(0_0_0/0.6)] backdrop-blur-xl"
+          "mx-auto grid h-16 w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center border px-5 transition-[background-color,border-color,box-shadow,border-radius,margin,height,padding] duration-300 sm:px-8",
+          raised
+            ? "border-border bg-background/80 mt-3 h-14 rounded-full px-3 shadow-[0_10px_40px_-18px_rgb(8_10_40/0.55)] backdrop-blur-xl sm:px-4"
             : "border-transparent bg-transparent",
         )}
       >
-        <Link to="/" aria-label="Credexus home" className="rounded-md">
+        <Link
+          to="/"
+          aria-label="Credexus home"
+          className="col-start-1 justify-self-start rounded-md"
+        >
           <Logo />
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+        <nav aria-label="Main" className="col-start-2 hidden items-center gap-0.5 lg:flex">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -42,8 +73,8 @@ export function Header() {
               prefetch="intent"
               className={({ isActive }) =>
                 cn(
-                  "rounded-full px-3.5 py-2 text-sm transition-colors",
-                  isActive ? "text-foreground" : "text-muted hover:text-foreground",
+                  "rounded-full px-3 py-2 text-sm transition-colors",
+                  isActive ? "text-foreground" : "text-foreground/75 hover:text-foreground",
                 )
               }
             >
@@ -52,8 +83,9 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="hidden sm:inline-flex">
+        <div className="col-start-3 flex items-center gap-1.5 justify-self-end sm:gap-2">
+          <ThemeToggle />
+          <Button asChild size="sm" variant="white" className="hidden sm:inline-flex">
             <Link to="/for-engineers#apply" prefetch="intent">
               Apply now <ArrowRight />
             </Link>
@@ -61,7 +93,7 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="size-9 lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             aria-controls="mobile-menu"
@@ -73,7 +105,7 @@ export function Header() {
       </div>
 
       <AnimatePresence initial={false}>
-        {open && (
+        {open ? (
           <m.div
             id="mobile-menu"
             initial={{ opacity: 0, height: 0, y: -8 }}
@@ -95,7 +127,7 @@ export function Header() {
                     className={({ isActive }) =>
                       cn(
                         "block rounded-2xl px-4 py-3 text-[15px]",
-                        isActive ? "text-foreground bg-white/5" : "text-muted",
+                        isActive ? "text-foreground bg-foreground/5" : "text-muted",
                       )
                     }
                   >
@@ -108,7 +140,7 @@ export function Header() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.16, duration: 0.25 }}
               >
-                <Button asChild className="mt-2 w-full">
+                <Button asChild variant="white" className="mt-2 w-full">
                   <Link to="/for-engineers#apply">
                     Apply now <ArrowRight />
                   </Link>
@@ -116,7 +148,7 @@ export function Header() {
               </m.div>
             </nav>
           </m.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </header>
   );

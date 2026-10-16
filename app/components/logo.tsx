@@ -1,14 +1,14 @@
 import { cn } from "~/lib/utils";
 
-/** Credexus mark: the glowing blue ribbon (raster with transparent background). */
+/** Credexus mark: the blue ribbon, with the black field knocked out. */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <img
       src="/logo-mark.webp"
       alt=""
       aria-hidden
-      width={64}
-      height={64}
+      width={256}
+      height={256}
       decoding="async"
       className={cn("size-8 shrink-0 select-none", className)}
     />
