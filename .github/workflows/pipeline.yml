@@ -3,16 +3,27 @@ name: Pipeline
 # Delivery pipeline — the whole branching workflow, automated:
 #
 #   push feat/** or fix/** ──► PR feature → dev ──► checks + review ──► merge (merge commit)
+#   pull_request feat/** or fix/** → dev (opened by hand) ──► same feature stage
 #                                                                          │
 #                              PR dev → main ◄─────────────────────────────┘
 #                                   │
 #                              checks + review ──► merge (merge commit) ──► deploy to Vercel
+#                                                                          │
+#                              delete the feature branch ◄─────────────────┘
 #
+# A merge made with GITHUB_TOKEN does not start a new workflow, so dev → main
+# runs in this same workflow after the feature pull request merges.
+# A pull request into main whose head is already dev starts at the release stage.
 # Pushing to dev directly (or merging a PR into dev by hand) starts at the release stage.
+# The feature branch is deleted only after the release stage finishes. Deleting it
+# earlier cancels this run before dev → main can start.
 # Repository settings required: see "GitHub configuration" in README.md.
 on:
   push:
     branches: ["feat/**", "fix/**", "dev"]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ["dev", "main"]
   # Manual re-run: pick a feat/fix branch (feature stage) or dev (release stage).
   workflow_dispatch:
 
@@ -21,31 +32,56 @@ permissions:
   pull-requests: write
   issues: write
 
+# One group per head branch. A push and a hand-opened pull request for that
+# branch must not merge the same pull request twice. The later run no-ops when
+# that pull request is already merged.
 concurrency:
-  group: pipeline-${{ github.ref }}
+  group: pipeline-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   feature:
     name: Feature → dev
-    if: github.ref_name != 'dev' && github.ref_name != 'main'
+    # Push or dispatch of feat/** or fix/**, or a pull request into dev from those branches.
+    # github.ref_name on pull_request is "<number>/merge", which is not a real branch.
+    if: >-
+      (
+        github.event_name != 'pull_request' &&
+        github.ref_name != 'dev' &&
+        github.ref_name != 'main'
+      ) || (
+        github.event_name == 'pull_request' &&
+        github.base_ref == 'dev' &&
+        (startsWith(github.head_ref, 'feat/') || startsWith(github.head_ref, 'fix/'))
+      )
     uses: ./.github/workflows/stage.yml
     with:
-      head: ${{ github.ref_name }}
+      head: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       base: dev
       kind: feature
-      delete_branch: true
+      delete_branch: false
       auto_merge: true
     secrets: inherit
 
   release:
     name: Dev → main
     needs: feature
-    # Runs after a feature merge, or directly for pushes/dispatches on dev.
+    # After a feature merge in this same run, or when this event is already dev → main.
+    # A GITHUB_TOKEN merge does not start a new workflow, so this cannot wait for a push to dev.
     if: >-
       always() && (
         needs.feature.outputs.merged == 'true' ||
-        (github.ref_name == 'dev' && needs.feature.result == 'skipped')
+        (
+          needs.feature.result == 'skipped' &&
+          (
+            github.ref_name == 'dev' ||
+            (
+              github.event_name == 'pull_request' &&
+              github.base_ref == 'main' &&
+              github.head_ref == 'dev'
+            )
+          )
+        )
       )
     uses: ./.github/workflows/stage.yml
     with:
@@ -63,3 +99,32 @@ jobs:
     if: always() && needs.release.outputs.merged == 'true'
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
+
+  cleanup:
+    name: Delete feature branch
+    needs: [feature, release, deploy]
+    # Deleting the head ref cancels this run. Wait until release has finished
+    # (and deploy, which shares the run) so GitHub does not cancel dev → main.
+    if: >-
+      always() &&
+      needs.feature.outputs.merged == 'true' &&
+      (needs.release.result == 'success' || needs.release.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged feature branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+        run: |
+          case "$HEAD" in
+            feat/*|fix/*) ;;
+            *)
+              echo "Leaving '$HEAD' in place."
+              exit 0
+              ;;
+          esac
+          if gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${HEAD}"; then
+            echo "Deleted $HEAD after the release stage finished."
+          else
+            echo "::warning::Could not delete $HEAD. It may already be gone."
+          fi
