@@ -147,3 +147,11 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# React Router / Vite / Vercel
+/build
+/.react-router
+.vercel
+.env
+.env.*
+!.env.example
