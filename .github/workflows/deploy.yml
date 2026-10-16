@@ -1,0 +1,39 @@
+name: Deploy to Vercel (production)
+
+# Runs when a PR from dev is merged into main (and on manual dispatch).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Check, build & deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Pull Vercel environment
+        run: npx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: npx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        id: deploy
+        run: echo "url=$(npx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
