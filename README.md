@@ -102,28 +102,47 @@ Pages stay CDN-cacheable (`s-maxage=3600, stale-while-revalidate`).
 - Structured data includes Organization, WebSite, BreadcrumbList, FAQPage, HowTo, ItemList and JobPosting (real jobs only).
 - `robots.txt` blocks indexing on Vercel preview deployments.
 
-## Git workflow
+## Git workflow (automated pipeline)
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org). Husky + commitlint enforce this on commit, and CI enforces it on PRs.
+Commits follow [Conventional Commits](https://www.conventionalcommits.org). Husky + commitlint check them when you commit, and the pipeline checks them again.
 
 `feat` · `fix` · `docs` · `test` · `refactor` · `perf` · `style` · `build` · `ci` · `chore` · `revert`
 
-1. Branch off `dev`: `feat/<topic>` or `fix/<topic>`.
-2. Open a PR **feature → dev**. CI runs format, lint, typecheck and build. The optional AI reviewer leaves comments. Merge **without squashing** to keep the history.
-3. Open a PR **dev → main**, then review and merge.
-4. Merging into `main` triggers **Deploy to Vercel (production)**.
+**Make one branch per change.** Branch off the latest `dev`, commit, push. The pipeline handles the rest:
+
+```bash
+git checkout dev && git pull
+git checkout -b feat/hero-copy        # or fix/<topic>
+git commit -m "feat(home): sharpen hero copy"
+git push -u origin feat/hero-copy
+```
+
+| Step             | What `.github/workflows/pipeline.yml` does                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| 1. Feature PR    | Opens a PR **feat/fix → dev**, or reuses one you opened yourself                                    |
+| 2. Checks        | Commitlint, Prettier, ESLint, typecheck, production build                                           |
+| 3. Review        | Posts a Claude review (`gh pr review`) and a **CI report** comment (results and bundle size)        |
+| 4. Merge         | If every check passed, merges with a **merge commit** (never squash) and deletes the feature branch |
+| 5. Release PR    | Opens or updates a PR **dev → main** and runs the same checks, review and report on it              |
+| 6. Merge to main | Merges with a merge commit (turn this off by setting the variable `AUTO_MERGE_TO_MAIN=false`)       |
+| 7. Deploy        | Runs `deploy.yml` to put `main` live on Vercel                                                      |
+
+If a check fails, the PR stays open with the report comment. Push a fix to the same branch and the pipeline runs again. Pushing to `dev` directly (or merging into it by hand) starts at step 5.
 
 ### GitHub configuration
 
-| Where             | Name                                 | Value                                                                             |
-| ----------------- | ------------------------------------ | --------------------------------------------------------------------------------- |
-| Actions secret    | `VERCEL_TOKEN`                       | Create one at vercel.com/account/tokens                                           |
-| Actions secret    | `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | From `.vercel/project.json` after running `npx vercel link`                       |
-| Actions secret    | `ANTHROPIC_API_KEY`                  | _Optional_, for automated PR review comments                                      |
-| Actions variable  | `ENABLE_AI_REVIEW`                   | `true` turns on the PR review workflow                                            |
-| Branch protection | `main`, `dev`                        | Require PRs and the **CI** check. Allow merge commits and disable squash merging. |
+| Where                                               | Setting                                                      | Value                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Settings → Actions → General → Workflow permissions | **Read and write permissions**                               | Required: the pipeline pushes merges                                                                                 |
+| Same page                                           | **Allow GitHub Actions to create and approve pull requests** | Required: the pipeline opens the PRs                                                                                 |
+| Settings → General → Pull Requests                  | Merge button                                                 | Keep "Allow merge commits". Turn off squash and rebase merging.                                                      |
+| Actions secret                                      | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`         | Run `npx vercel link`, then copy the IDs from `.vercel/project.json`. Create the token at vercel.com/account/tokens. |
+| Actions secret                                      | `ANTHROPIC_API_KEY` **or** `CLAUDE_CODE_OAUTH_TOKEN`         | Turns on Claude review comments. For the second option, run `claude setup-token` (uses a Claude Pro/Max plan).       |
+| Actions variable (optional)                         | `AUTO_MERGE_TO_MAIN`                                         | Set to `false` to stop at an open, reviewed dev → main PR.                                                           |
 
-`vercel.json` turns off Vercel's own Git auto-deploys for `main`, so production deploys only come from GitHub Actions. PR preview deployments still work.
+Don't add branch protection that requires approving reviews: the pipeline merges with the built-in `GITHUB_TOKEN`, which can't approve its own PRs.
+
+`vercel.json` turns off Vercel's own Git auto-deploys for `main`, so production deploys only come from the pipeline.
 
 ## Pre-launch checklist
 

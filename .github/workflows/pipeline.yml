@@ -1,0 +1,65 @@
+name: Pipeline
+
+# Delivery pipeline — the whole branching workflow, automated:
+#
+#   push feat/** or fix/** ──► PR feature → dev ──► checks + review ──► merge (merge commit)
+#                                                                          │
+#                              PR dev → main ◄─────────────────────────────┘
+#                                   │
+#                              checks + review ──► merge (merge commit) ──► deploy to Vercel
+#
+# Pushing to dev directly (or merging a PR into dev by hand) starts at the release stage.
+# Repository settings required: see "GitHub configuration" in README.md.
+on:
+  push:
+    branches: ["feat/**", "fix/**", "dev"]
+  # Manual re-run: pick a feat/fix branch (feature stage) or dev (release stage).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  feature:
+    name: Feature → dev
+    if: github.ref_name != 'dev' && github.ref_name != 'main'
+    uses: ./.github/workflows/stage.yml
+    with:
+      head: ${{ github.ref_name }}
+      base: dev
+      kind: feature
+      delete_branch: true
+      auto_merge: true
+    secrets: inherit
+
+  release:
+    name: Dev → main
+    needs: feature
+    # Runs after a feature merge, or directly for pushes/dispatches on dev.
+    if: >-
+      always() && (
+        needs.feature.outputs.merged == 'true' ||
+        (github.ref_name == 'dev' && needs.feature.result == 'skipped')
+      )
+    uses: ./.github/workflows/stage.yml
+    with:
+      head: dev
+      base: main
+      kind: release
+      delete_branch: false
+      # Set repository variable AUTO_MERGE_TO_MAIN=false to stop at an open, reviewed PR.
+      auto_merge: ${{ vars.AUTO_MERGE_TO_MAIN != 'false' }}
+    secrets: inherit
+
+  deploy:
+    name: Deploy
+    needs: release
+    if: always() && needs.release.outputs.merged == 'true'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
