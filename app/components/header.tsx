@@ -1,3 +1,4 @@
+import { AnimatePresence, m } from "framer-motion";
 import { ArrowRight, Menu, X } from "lucide-react";
 import * as React from "react";
 import { Link, NavLink, useLocation } from "react-router";
@@ -71,33 +72,52 @@ export function Header() {
         </div>
       </div>
 
-      <div
-        id="mobile-menu"
-        hidden={!open}
-        className="border-border bg-background/95 mx-auto mt-2 max-w-6xl rounded-3xl border p-3 backdrop-blur-xl lg:hidden"
-      >
-        <nav aria-label="Mobile" className="flex flex-col">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  "rounded-2xl px-4 py-3 text-[15px]",
-                  isActive ? "text-foreground bg-white/5" : "text-muted",
-                )
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-          <Button asChild className="mt-2">
-            <Link to="/for-engineers#apply">
-              Apply now <ArrowRight />
-            </Link>
-          </Button>
-        </nav>
-      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <m.div
+            id="mobile-menu"
+            initial={{ opacity: 0, height: 0, y: -8 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: [0.44, 0, 0.56, 1] }}
+            className="border-border bg-background/95 mx-auto mt-2 max-w-6xl overflow-hidden rounded-3xl border p-3 backdrop-blur-xl lg:hidden"
+          >
+            <nav aria-label="Mobile" className="flex flex-col">
+              {nav.map((item, i) => (
+                <m.div
+                  key={item.to}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.04 + i * 0.04, duration: 0.25 }}
+                >
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        "block rounded-2xl px-4 py-3 text-[15px]",
+                        isActive ? "text-foreground bg-white/5" : "text-muted",
+                      )
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </m.div>
+              ))}
+              <m.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.16, duration: 0.25 }}
+              >
+                <Button asChild className="mt-2 w-full">
+                  <Link to="/for-engineers#apply">
+                    Apply now <ArrowRight />
+                  </Link>
+                </Button>
+              </m.div>
+            </nav>
+          </m.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
