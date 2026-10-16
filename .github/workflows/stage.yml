@@ -1,0 +1,304 @@
+name: Promote stage
+
+# Reusable stage used by pipeline.yml. For one head → base promotion it:
+#   1. opens (or reuses) the pull request
+#   2. runs commit lint, format, lint, typecheck and build
+#   3. posts an automated review (Claude, when a key is configured)
+#   4. posts/updates a CI report comment
+#   5. merges with a merge commit (never squash) when every check passed
+on:
+  workflow_call:
+    inputs:
+      head:
+        type: string
+        required: true
+      base:
+        type: string
+        required: true
+      kind:
+        description: "feature (branch → dev) or release (dev → main)"
+        type: string
+        required: true
+      delete_branch:
+        type: boolean
+        default: false
+      auto_merge:
+        type: boolean
+        default: true
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+    outputs:
+      merged:
+        description: "true when the PR was merged by this run"
+        value: ${{ jobs.merge.outputs.merged }}
+      pr:
+        value: ${{ jobs.prepare.outputs.pr }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  prepare:
+    name: Open pull request
+    runs-on: ubuntu-latest
+    concurrency:
+      group: promote-${{ inputs.head }}-to-${{ inputs.base }}
+      cancel-in-progress: false
+    outputs:
+      pr: ${{ steps.pr.outputs.pr }}
+      sha: ${{ steps.range.outputs.sha }}
+      skip: ${{ steps.range.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Compare branches
+        id: range
+        run: |
+          git fetch --quiet origin "${{ inputs.base }}" "${{ inputs.head }}"
+          ahead=$(git rev-list --count "origin/${{ inputs.base }}..origin/${{ inputs.head }}")
+          echo "sha=$(git rev-parse "origin/${{ inputs.head }}")" >> "$GITHUB_OUTPUT"
+          if [ "$ahead" = "0" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${{ inputs.head }} has no commits that ${{ inputs.base }} doesn't already have — nothing to promote."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "${{ inputs.head }} is $ahead commit(s) ahead of ${{ inputs.base }}"
+          fi
+      - name: Find or create pull request
+        id: pr
+        if: steps.range.outputs.skip == 'false'
+        run: |
+          head="${{ inputs.head }}"; base="${{ inputs.base }}"
+          pr=$(gh pr list --head "$head" --base "$base" --state open --json number --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            commits=$(git log --no-merges --reverse --format='- %s (%h)' "origin/$base..origin/$head")
+            if [ "${{ inputs.kind }}" = "release" ]; then
+              title="release: promote dev to main ($(date -u +%Y-%m-%d))"
+            else
+              title=$(git log --no-merges --reverse --format=%s "origin/$base..origin/$head" | head -1)
+              [ -z "$title" ] && title="$head"
+            fi
+            body=$(printf '%s\n\n### Commits\n%s\n\n---\n_Opened automatically by the delivery pipeline. It merges with a merge commit (no squash) once all checks pass._' \
+              "Promotes \`$head\` into \`$base\`." "$commits")
+            if ! out=$(gh pr create --head "$head" --base "$base" --title "$title" --body "$body" 2>&1); then
+              echo "$out"
+              if echo "$out" | grep -qi "not permitted to create"; then
+                echo "::error title=Repository setting needed::Enable Settings → Actions → General → Workflow permissions → 'Allow GitHub Actions to create and approve pull requests' (and 'Read and write permissions')."
+              fi
+              exit 1
+            fi
+            pr=$(gh pr list --head "$head" --base "$base" --state open --json number --jq '.[0].number')
+            echo "Opened PR #$pr"
+          else
+            echo "Using existing PR #$pr"
+          fi
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+
+  checks:
+    name: Lint, typecheck & build
+    needs: prepare
+    if: needs.prepare.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    outputs:
+      commits: ${{ steps.commits.outcome }}
+      format: ${{ steps.format.outcome }}
+      lint: ${{ steps.lint.outcome }}
+      typecheck: ${{ steps.typecheck.outcome }}
+      build: ${{ steps.build.outcome }}
+      size: ${{ steps.size.outputs.table }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Each check records its outcome; the report job summarises them all.
+      - name: Conventional commits
+        id: commits
+        if: inputs.kind == 'feature'
+        continue-on-error: true
+        run: npx commitlint --from "origin/${{ inputs.base }}" --to HEAD --verbose
+      - name: Format
+        id: format
+        continue-on-error: true
+        run: npm run format:check
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: npm run build
+      - name: Bundle size
+        id: size
+        if: steps.build.outcome == 'success'
+        run: |
+          {
+            echo 'table<<EOF'
+            echo '| Asset | Size (gzip) |'
+            echo '| --- | ---: |'
+            for f in $(ls -S build/client/assets/*.js build/client/assets/*.css | head -6); do
+              printf '| `%s` | %s KB |\n' "$(basename "$f")" "$(gzip -c "$f" | wc -c | awk '{printf "%.1f", $1/1024}')"
+            done
+            echo "| **All JS** | **$(cat build/client/assets/*.js | gzip -c | wc -c | awk '{printf "%.1f", $1/1024}') KB** |"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Fail if any check failed
+        if: >-
+          steps.commits.outcome == 'failure' || steps.format.outcome == 'failure' ||
+          steps.lint.outcome == 'failure' || steps.typecheck.outcome == 'failure' ||
+          steps.build.outcome == 'failure'
+        run: |
+          echo "::error::One or more checks failed — see the CI report comment on the pull request."
+          exit 1
+
+  review:
+    name: Automated review
+    needs: prepare
+    if: needs.prepare.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PR: ${{ needs.prepare.outputs.pr }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+      - name: Explain how to enable AI review
+        if: env.ANTHROPIC_API_KEY == '' && env.CLAUDE_CODE_OAUTH_TOKEN == ''
+        run: |
+          marker='<!-- credexus-ai-review-setup -->'
+          if ! gh pr view "$PR" --json comments --jq '.comments[].body' | grep -q "$marker"; then
+            gh pr comment "$PR" --body "$marker
+          ### 🤖 AI review is not enabled yet
+
+          Add **one** repository secret (Settings → Secrets and variables → Actions) to get Claude review comments on every pipeline PR:
+
+          | Secret | How to get it |
+          | --- | --- |
+          | \`ANTHROPIC_API_KEY\` | console.anthropic.com → API keys (pay-as-you-go) |
+          | \`CLAUDE_CODE_OAUTH_TOKEN\` | run \`claude setup-token\` locally (uses your Claude Pro/Max plan) |"
+          fi
+          echo "::warning::AI review skipped — set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN."
+      - name: Claude code review
+        if: env.ANTHROPIC_API_KEY != '' || env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        # A review problem should never block delivery; checks gate the merge.
+        continue-on-error: true
+        run: |
+          npm install -g @anthropic-ai/claude-code@2 >/dev/null 2>&1
+          prompt="You are reviewing pull request #$PR in $GITHUB_REPOSITORY (${{ inputs.head }} → ${{ inputs.base }}).
+          The PR branch is checked out in the current directory. Use \`gh pr diff $PR\` and \`gh pr view $PR\` to inspect it.
+
+          Project: Credexus marketing site — React Router v7 SSR, Tailwind v4, shadcn/Magic UI, Framer Motion, Vercel.
+          Review for: correctness and bugs; accessibility; SEO (meta, canonical, structured data, sitemap);
+          performance regressions (bundle size, render-blocking work, hydration mismatches); security of form
+          handling and file uploads; unverifiable marketing claims (stats, testimonials, partner/affiliation wording).
+
+          Post your review with: gh pr review $PR --comment --body \"<review>\"
+          Start the body with '### 🤖 Claude review'. Be concise: a short verdict, then a bulleted list of
+          concrete findings with file:line references, ordered by severity. If there is nothing worth changing, say so."
+          timeout 15m claude -p "$prompt" \
+            --allowedTools "Bash(gh pr diff:*)" "Bash(gh pr view:*)" "Bash(gh pr review:*)" "Bash(gh pr comment:*)" Read Grep Glob
+
+  report:
+    name: CI report comment
+    needs: [prepare, checks]
+    if: always() && needs.prepare.outputs.skip == 'false' && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          PR: ${{ needs.prepare.outputs.pr }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+          KIND: ${{ inputs.kind }}
+          COMMITS: ${{ needs.checks.outputs.commits }}
+          FORMAT: ${{ needs.checks.outputs.format }}
+          LINT: ${{ needs.checks.outputs.lint }}
+          TYPECHECK: ${{ needs.checks.outputs.typecheck }}
+          BUILD: ${{ needs.checks.outputs.build }}
+          SIZE_TABLE: ${{ needs.checks.outputs.size }}
+          AUTO_MERGE: ${{ inputs.auto_merge }}
+        with:
+          script: |
+            const env = process.env;
+            const marker = "<!-- credexus-ci-report -->";
+            const icon = (o) => (o === "success" ? "✅" : !o || o === "skipped" ? "⏭️" : "❌");
+            const rows = [
+              ["Conventional commits", env.COMMITS, "npx commitlint --from origin/dev"],
+              ["Formatting (Prettier)", env.FORMAT, "npm run format"],
+              ["Lint (ESLint)", env.LINT, "npm run lint"],
+              ["Typecheck", env.TYPECHECK, "npm run typecheck"],
+              ["Production build", env.BUILD, "npm run build"],
+            ];
+            const failed = rows.some(([, o]) => o === "failure") || !env.BUILD;
+            const next = failed
+              ? "Fix the failing checks and push again — the pipeline re-runs automatically."
+              : env.AUTO_MERGE === "true"
+                ? `All checks passed — merging with a merge commit${env.KIND === "feature" ? ", then promoting `dev` → `main`" : " and deploying to production"}.`
+                : "All checks passed — ready for manual review and merge (auto-merge is off).";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              marker,
+              `### ${failed ? "❌ CI checks failed" : "✅ CI checks passed"}`,
+              "",
+              "| Check | Result | Fix locally |",
+              "| --- | :---: | --- |",
+              ...rows.map(([name, o, cmd]) => `| ${name} | ${icon(o)} | \`${cmd}\` |`),
+              "",
+              env.SIZE_TABLE ? `<details><summary>Client bundle</summary>\n\n${env.SIZE_TABLE}\n</details>\n` : "",
+              `**Next:** ${next}`,
+              "",
+              `Commit \`${env.SHA.slice(0, 7)}\` · [pipeline run](${runUrl})`,
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const issue_number = Number(env.PR);
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
+
+  merge:
+    name: Merge (no squash)
+    needs: [prepare, checks, review, report]
+    if: >-
+      always() && inputs.auto_merge && needs.prepare.outputs.skip == 'false' &&
+      needs.checks.result == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: merge-into-${{ inputs.base }}
+      cancel-in-progress: false
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
+    steps:
+      - name: Merge pull request
+        id: merge
+        env:
+          PR: ${{ needs.prepare.outputs.pr }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          args=(--merge --match-head-commit "$SHA" --repo "$GITHUB_REPOSITORY")
+          ${{ inputs.delete_branch }} && args+=(--delete-branch)
+          gh pr merge "$PR" "${args[@]}"
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+          echo "::notice::Merged PR #$PR (${{ inputs.head }} → ${{ inputs.base }}) with a merge commit."
