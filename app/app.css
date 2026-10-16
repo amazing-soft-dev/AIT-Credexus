@@ -59,6 +59,7 @@
   --animate-border-beam: border-beam calc(var(--duration, 8) * 1s) infinite linear;
   --animate-shimmer: shimmer 2.6s linear infinite;
   --animate-pulse-soft: pulse-soft 4s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.6s cubic-bezier(0.44, 0, 0.56, 1) both;
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
   --animate-grow-x: grow-x 1.1s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
 
@@ -89,6 +90,14 @@
     }
     to {
       background-position: -200% 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0.001;
+    }
+    to {
+      opacity: 1;
     }
   }
   @keyframes fade-up {
@@ -158,6 +167,11 @@
   .eyebrow {
     @apply border-border bg-surface/70 text-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium tracking-[0.18em] uppercase;
   }
+  /* Skip style/layout/paint for off-screen sections until they approach the viewport. */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 900px;
+  }
   .text-gradient {
     background: linear-gradient(180deg, #ffffff 20%, #b7c0ff 100%);
     -webkit-background-clip: text;
@@ -191,6 +205,52 @@
   }
 }
 
+/* Lenis smooth scroll (https://github.com/darkroomengineering/lenis) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Scroll-scrubbed character reveal (see components/motion/scrub-text.tsx) */
+.scrub-char {
+  opacity: clamp(var(--min), calc((var(--p) * var(--span) - var(--i) * 0.1) / 0.5), 1);
+}
+
+/* Accordion: animate height open/close (Avenna FAQ, 0.4s tween) while keeping answers in the DOM.
+   The transition lives on an inner grid because Radix zeroes transition-duration on its own
+   element while measuring. */
+.acc-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s cubic-bezier(0.44, 0, 0.56, 1);
+}
+.acc-content[data-state="open"] > .acc-grid {
+  grid-template-rows: 1fr;
+}
+.acc-grid > div {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.4s cubic-bezier(0.44, 0, 0.56, 1),
+    visibility 0s linear 0.4s;
+}
+.acc-content[data-state="open"] > .acc-grid > div {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
 /* Hold decorative infinite animations until the page has loaded (saves main-thread work during first load). */
 html:not([data-loaded]) .animate-marquee,
 html:not([data-loaded]) .animate-marquee-reverse,
@@ -201,6 +261,9 @@ html:not([data-loaded]) [class*="after:animate-border-beam"]::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .scrub-char {
+    opacity: 1;
+  }
   *,
   *::before,
   *::after {

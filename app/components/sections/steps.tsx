@@ -1,11 +1,12 @@
 import { BlurFade } from "~/components/magicui/blur-fade";
 import { steps } from "~/data/content";
+import { STAGGER } from "~/lib/motion";
 
 export function Steps() {
   return (
     <ol className="relative grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {steps.map((s, i) => (
-        <BlurFade as="li" key={s.n} delay={i * 0.08} className="card group relative p-6">
+        <BlurFade as="li" key={s.n} delay={i * STAGGER} className="card group relative p-6">
           <span className="text-accent/90 font-serif text-4xl italic">{s.n}</span>
           <h3 className="text-foreground mt-6 text-lg font-semibold">{s.title}</h3>
           <p className="text-muted mt-2 text-sm leading-relaxed">{s.body}</p>

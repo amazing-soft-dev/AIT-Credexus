@@ -80,6 +80,26 @@ All copy that changes often lives in `app/data/`:
 - **`content.ts`**: FAQs, process steps, benefits and **testimonials**. The testimonials section stays hidden in production until you add real, consented quotes. In dev it shows dashed placeholders.
 - **`site.ts`**: company emails, social links, navigation.
 
+## Animations
+
+The motion system follows the Avenna template. Every tween uses 0.6s with `cubic-bezier(.44,0,.56,1)` and scroll-linked springs use damping 60 / stiffness 500. The tokens live in `app/lib/motion.ts`.
+
+| Effect                                                                              | Where                                       | Component                             |
+| ----------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------- |
+| Smooth scrolling (Lenis)                                                            | Site-wide; off for reduced-motion and touch | `components/motion/smooth-scroll.tsx` |
+| Pinned hero zoom: the card zooms 1→2.4 while the text lifts and fades               | Home hero                                   | `components/sections/hero.tsx`        |
+| Scroll reveal: fade + 30px rise; grids stagger 0.1s; icons go from blurred to sharp | All sections                                | `components/magicui/blur-fade.tsx`    |
+| Numbered tabs with a cross-fade, blur-to-sharp copy and a spring indicator          | Home, "The work"                            | `components/sections/work-tabs.tsx`   |
+| Character-by-character reveal scrubbed by scroll                                    | Home, "Why we exist"                        | `components/motion/scrub-text.tsx`    |
+| Heading zooms from 1.8 to 1 on scroll                                               | Home, Regions                               | `components/motion/scroll-zoom.tsx`   |
+| 3D tilt on hover (tilts away from the cursor)                                       | Match card, region cards                    | `components/motion/tilt.tsx`          |
+| Light sweep when a card comes into view                                             | Match card, region cards                    | `components/motion/shine.tsx`         |
+| Animated WebGL light rays                                                           | CTA band                                    | `components/motion/light-rays.tsx`    |
+| FAQ height animation and spring icon                                                | Accordion                                   | `components/ui/accordion.tsx`         |
+| Spring hover on buttons                                                             | Buttons                                     | `components/ui/button.tsx`            |
+
+Reduced-motion users get static content: Lenis is off, transforms are disabled through `MotionConfig`, text appears fully, and the light rays render a single frame.
+
 ## Forms and email
 
 - The forms post to `/api/apply`, `/api/partner` and `/api/contact`. Inputs are validated with Zod on the server (`app/lib/leads.ts`).

@@ -10,6 +10,7 @@ import {
 } from "react-router";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
+import { SmoothScroll } from "~/components/motion/smooth-scroll";
 import type { Route } from "./+types/root";
 import * as React from "react";
 import "./app.css";
@@ -70,8 +71,9 @@ export default function App() {
   return (
     <LazyMotion features={loadMotionFeatures} strict>
       <MotionConfig reducedMotion="user">
+        <SmoothScroll />
         <Header />
-        <main id="main">
+        <main id="main" className="overflow-x-clip">
           <Outlet />
         </main>
         <Footer />

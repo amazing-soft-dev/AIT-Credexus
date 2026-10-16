@@ -1,154 +1,148 @@
-import { ArrowRight, BadgeCheck, Sparkles } from "lucide-react";
+import { m, useScroll, useSpring, useTransform } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+import * as React from "react";
 import { Link } from "react-router";
 import { AnimatedShinyText } from "~/components/magicui/animated-shiny-text";
-import { BorderBeam } from "~/components/magicui/border-beam";
 import { Button } from "~/components/ui/button";
-import { platformBySlug } from "~/data/platforms";
+import { SCROLL_SPRING } from "~/lib/motion";
+import { useMediaQuery } from "~/lib/use-in-view";
 import { Accent } from "./section-heading";
-import { PlatformMark } from "./platform-mark";
 
-const matches = [
-  { slug: "outlier", fit: 94, task: "Python code evaluation" },
-  { slug: "mercor", fit: 89, task: "Agentic coding tasks" },
-  { slug: "alignerr", fit: 82, task: "Reasoning & review" },
-];
+/** Scroll targets per breakpoint, taken from the Avenna hero ("Graphic" transform targets). */
+const TARGETS = {
+  desktop: { scale: 2.4, y: 100, opacity: 1 },
+  tablet: { scale: 2.6, y: 68, opacity: 1 },
+  mobile: { scale: 4, y: -200, opacity: 0 },
+} as const;
 
-function MatchCard() {
-  return (
-    <div className="relative mx-auto w-full max-w-md">
-      <div
-        className="absolute -inset-16 -z-10 bg-[radial-gradient(closest-side,rgb(90_107_255/0.32),transparent)]"
-        aria-hidden
-      />
-      <div className="border-border-strong bg-surface/90 relative overflow-hidden rounded-3xl border p-5 shadow-2xl sm:p-6">
-        <div className="flex items-center gap-3">
-          <span className="from-accent to-primary-strong grid size-11 place-items-center rounded-full bg-gradient-to-br text-sm font-semibold text-white">
-            LM
-          </span>
-          <div className="min-w-0">
-            <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
-              Senior Python Engineer
-              <BadgeCheck className="text-accent size-4" aria-hidden />
-            </p>
-            <p className="text-subtle text-xs">São Paulo, Brazil · English C1 · 6 yrs</p>
-          </div>
-          <span className="border-success/30 bg-success/10 text-success ml-auto rounded-full border px-2.5 py-1 text-[11px] font-medium">
-            Screened
-          </span>
-        </div>
-
-        <div className="text-subtle mt-5 flex items-center gap-2 text-[11px] font-medium tracking-[0.14em] uppercase">
-          <Sparkles className="text-accent size-3.5" aria-hidden /> Best-fit platforms
-        </div>
-        <ul className="mt-3 space-y-2.5">
-          {matches.map((mt, i) => {
-            const p = platformBySlug(mt.slug)!;
-            return (
-              <li key={mt.slug} className="border-border bg-background/50 rounded-2xl border p-3">
-                <div className="flex items-center gap-3">
-                  <PlatformMark platform={p} className="size-7" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-foreground truncate text-sm">{p.name}</p>
-                    <p className="text-subtle truncate text-[11px]">{mt.task}</p>
-                  </div>
-                  <span className="text-foreground text-sm font-semibold tabular-nums">
-                    {mt.fit}%
-                  </span>
-                </div>
-                <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/5">
-                  <div
-                    className="from-primary to-accent animate-grow-x h-full origin-left rounded-full bg-gradient-to-r"
-                    style={{ width: `${mt.fit}%`, animationDelay: `${0.5 + i * 0.15}s` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        <BorderBeam size={140} duration={8} />
-      </div>
-      <p className="text-subtle mt-3 text-center text-[11px]">
-        Illustrative example of a Credexus match
-      </p>
-    </div>
-  );
-}
-
+/**
+ * Pinned hero (Avenna "Desktop - Animated"):
+ *  - the section is ~1.75 viewports tall with a sticky stage
+ *  - as you scroll, the glowing grid card (held by two hands) zooms 1 → 2.4 and drifts down,
+ *    filling the screen, while the headline lifts (-50px) and the copy/CTA drop (+50px) as
+ *    both fade out — all spring-smoothed (damping 60, stiffness 500)
+ *  - on load the content fades in (0.6s, cubic-bezier(.44,0,.56,1))
+ */
 export function Hero() {
+  const ref = React.useRef<HTMLElement>(null);
+  const isMobile = useMediaQuery("(max-width: 809.98px)");
+  const isTablet = useMediaQuery("(min-width: 810px) and (max-width: 1199.98px)");
+  const t = isMobile ? TARGETS.mobile : isTablet ? TARGETS.tablet : TARGETS.desktop;
+
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  const p = useSpring(scrollYProgress, SCROLL_SPRING);
+
+  const scale = useTransform(p, [0, 1], [1, t.scale]);
+  const y = useTransform(p, [0, 1], [0, t.y]);
+  const graphicOpacity = useTransform(p, [0, 1], [1, t.opacity]);
+  const contentOpacity = useTransform(p, [0, 0.45], [1, 0]);
+  const headUp = useTransform(p, [0, 0.45], [0, -50]);
+  const copyDown = useTransform(p, [0, 0.45], [0, 50]);
+
   return (
-    <section className="relative isolate overflow-hidden pt-32 pb-20 sm:pt-40 lg:pb-28">
-      <picture>
-        <source media="(min-width: 1280px)" srcSet="/images/hero-grid-1920.webp" />
-        <source media="(min-width: 768px)" srcSet="/images/hero-grid-1280.webp" />
-        <img
-          src="/images/hero-grid-768.webp"
-          alt=""
-          width={1920}
-          height={1206}
-          fetchPriority="low"
-          decoding="async"
-          className="absolute inset-0 -z-20 size-full object-cover object-bottom opacity-90"
+    <section ref={ref} aria-label="Introduction" className="relative h-[175svh]">
+      <div className="sticky top-0 flex h-svh items-center justify-center overflow-hidden">
+        {/* ambient glow behind the card */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-[radial-gradient(55%_45%_at_50%_55%,rgb(63_79_217/0.35),transparent_70%)]"
         />
-      </picture>
-      <div
-        className="from-background/80 via-background/30 to-background absolute inset-0 -z-10 bg-gradient-to-b"
-        aria-hidden
-      />
-      <div
-        className="to-background absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-b from-transparent"
-        aria-hidden
-      />
 
-      <div className="container-x grid items-center gap-14 lg:grid-cols-[1.15fr_1fr]">
-        <div className="text-center lg:text-left">
-          <div className="animate-fade-up">
-            <Link
-              to="/jobs"
-              className="border-border-strong bg-surface/80 inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-xs"
-            >
-              <span className="bg-primary rounded-full px-2 py-0.5 text-[11px] font-medium text-white">
-                New
-              </span>
-              <AnimatedShinyText>AI training roles open across 4 regions</AnimatedShinyText>
-              <ArrowRight className="text-muted size-3" aria-hidden />
-            </Link>
-          </div>
-
-          <h1 className="text-gradient mt-7 text-[40px] leading-[1.04] font-semibold sm:text-6xl lg:text-[68px]">
-            Get paid to train the <Accent>world&apos;s best</Accent> AI
-          </h1>
-          <p className="text-muted mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg lg:mx-0">
-            Credexus fast-tracks software engineers in Latam, Asia, Europe and Canada into remote,
-            high-paying AI training and evaluation work — on the platforms frontier labs rely on.
-          </p>
-
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link to="/for-engineers#apply" prefetch="intent">
-                Apply as an engineer <ArrowRight />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto">
-              <Link to="/for-partners" prefetch="intent">
-                I&apos;m hiring engineers
-              </Link>
-            </Button>
-          </div>
-
-          <ul className="text-muted mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm lg:justify-start">
-            {["Free for candidates", "Remote & flexible", "19 platforms, one application"].map(
-              (t) => (
-                <li key={t} className="inline-flex items-center gap-2">
-                  <span className="bg-accent size-1.5 rounded-full" aria-hidden />
-                  {t}
-                </li>
-              ),
-            )}
-          </ul>
+        {/* Graphic: grid card + hands, zooms on scroll. Outer div centres, inner m.div animates. */}
+        <div className="animate-fade-in absolute top-[79%] left-1/2 w-[92vw] max-w-[1100px] -translate-x-1/2 -translate-y-1/2 sm:top-1/2 sm:w-[78vw] lg:w-[56vw]">
+          <m.div
+            aria-hidden
+            className="relative aspect-[2604/1636]"
+            style={{ scale, y, opacity: graphicOpacity }}
+          >
+            <div className="absolute inset-0 overflow-hidden rounded-[22px] shadow-[0_0_0_1px_rgb(160_175_255/0.35),0_0_40px_-8px_rgb(90_107_255/0.6)] sm:rounded-[28px]">
+              <picture>
+                <source media="(min-width: 1440px)" srcSet="/images/hero-grid-2560.webp" />
+                <source media="(min-width: 810px)" srcSet="/images/hero-grid-1920.webp" />
+                <img
+                  src="/images/hero-grid-1280.webp"
+                  alt=""
+                  width={1920}
+                  height={1206}
+                  fetchPriority="high"
+                  decoding="async"
+                  className="size-full object-cover"
+                />
+              </picture>
+              <div className="absolute inset-0 bg-gradient-to-b from-[#06071a]/55 via-transparent to-[#06071a]/20" />
+            </div>
+            <img
+              src="/images/hand-left.webp"
+              alt=""
+              width={340}
+              height={764}
+              loading="lazy"
+              decoding="async"
+              className="pointer-events-none absolute top-[43%] -left-[13%] w-[24%] [mask-image:linear-gradient(to_bottom,black_55%,transparent_92%)]"
+            />
+            <img
+              src="/images/hand-right.webp"
+              alt=""
+              width={370}
+              height={780}
+              loading="lazy"
+              decoding="async"
+              className="pointer-events-none absolute top-[31%] -right-[14%] w-[26%] [mask-image:linear-gradient(to_bottom,black_55%,transparent_92%)]"
+            />
+          </m.div>
         </div>
 
-        <div className="animate-fade-up [animation-delay:150ms]">
-          <MatchCard />
+        {/* Content */}
+        {/* CSS load fade lives on the wrapper so it can't override the scroll-driven opacity */}
+        <div className="animate-fade-in relative z-10 max-sm:-translate-y-[11vh]">
+          <m.div
+            className="mx-auto flex max-w-3xl flex-col items-center px-5 text-center"
+            style={{ opacity: contentOpacity }}
+          >
+            <m.div style={{ y: headUp }} className="flex flex-col items-center">
+              <Link
+                to="/jobs"
+                className="border-border-strong bg-surface/80 inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-xs"
+              >
+                <span className="bg-primary rounded-full px-2 py-0.5 text-[11px] font-medium text-white">
+                  New
+                </span>
+                <AnimatedShinyText>AI training roles open across 4 regions</AnimatedShinyText>
+                <ArrowRight className="text-muted size-3" aria-hidden />
+              </Link>
+              <h1 className="text-gradient mt-6 text-[40px] leading-[1.04] font-semibold [text-shadow:0_4px_30px_rgb(6_7_26/0.6)] sm:text-6xl lg:text-[72px]">
+                Get paid to train the <Accent>world&apos;s best</Accent> AI
+              </h1>
+            </m.div>
+            <m.div style={{ y: copyDown }} className="flex flex-col items-center">
+              <p className="text-foreground/80 mt-6 max-w-xl text-base leading-relaxed [text-shadow:0_2px_16px_rgb(6_7_26/0.8)] sm:text-lg">
+                Credexus fast-tracks software engineers in Latam, Asia, Europe and Canada into
+                remote, high-paying AI training and evaluation work.
+              </p>
+              <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+                <Button asChild size="lg" variant="white" className="w-full sm:w-auto">
+                  <Link to="/for-engineers#apply" prefetch="intent">
+                    Apply as an engineer <ArrowRight />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto">
+                  <Link to="/for-partners" prefetch="intent">
+                    I&apos;m hiring engineers
+                  </Link>
+                </Button>
+              </div>
+              <ul className="text-muted mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
+                {["Free for candidates", "Remote & flexible", "19 platforms, one application"].map(
+                  (x) => (
+                    <li key={x} className="inline-flex items-center gap-2">
+                      <span className="bg-accent size-1.5 rounded-full" aria-hidden />
+                      {x}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </m.div>
+          </m.div>
         </div>
       </div>
     </section>
