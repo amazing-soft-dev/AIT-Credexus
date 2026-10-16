@@ -13,7 +13,7 @@ export function JobCard({ job }: { job: Job }) {
     <Link
       to={`/jobs/${job.id}`}
       prefetch="intent"
-      className="card group hover:border-border-strong hover:bg-surface flex h-full flex-col p-6 transition-colors"
+      className="card group hover:border-border-strong hover:bg-surface flex h-full flex-col p-6 transition-[background-color,border-color,transform] duration-300 hover:-translate-y-1"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-wrap gap-2">

@@ -21,13 +21,7 @@ export function PageHero({
       />
       <DotPattern className="-z-10 opacity-60" />
       <div className="container-x">
-        <SectionHeading
-          as="h1"
-          animate={false}
-          eyebrow={eyebrow}
-          title={title}
-          description={description}
-        />
+        <SectionHeading as="h1" eyebrow={eyebrow} title={title} description={description} />
         {children && <div className="mt-10">{children}</div>}
       </div>
     </section>
