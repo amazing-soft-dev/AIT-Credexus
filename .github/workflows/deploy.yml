@@ -1,10 +1,12 @@
 name: Deploy to Vercel (production)
 
-# Runs when a PR from dev is merged into main (and on manual dispatch).
+# Production deploy of main. Called by the pipeline after it merges dev → main, and also runs
+# when someone merges into main by hand or dispatches it manually.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: deploy-production
@@ -22,18 +24,31 @@ jobs:
       name: production
       url: ${{ steps.deploy.outputs.url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check Vercel secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ] && missing="$missing VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=Vercel not configured::Missing repository secrets:$missing. Run 'npx vercel link' locally, copy orgId and projectId from .vercel/project.json, create a token at vercel.com/account/tokens, and add all three under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+      # Always deploy the tip of main (when called from the pipeline, github.sha is the feature commit).
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
       - name: Pull Vercel environment
-        run: npx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel@latest pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
       - name: Build
-        run: npx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel@latest build --prod --token="${{ secrets.VERCEL_TOKEN }}"
       - name: Deploy
         id: deploy
-        run: echo "url=$(npx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
+        run: echo "url=$(npx vercel@latest deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")" >> "$GITHUB_OUTPUT"
