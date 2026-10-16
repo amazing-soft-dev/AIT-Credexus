@@ -1,0 +1,36 @@
+name: Automated PR review
+
+# Posts AI review comments on pull requests into dev and main.
+# Enable by adding the ANTHROPIC_API_KEY secret and setting the repository
+# variable ENABLE_AI_REVIEW=true (Settings → Secrets and variables → Actions).
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches: [dev, main]
+
+jobs:
+  review:
+    if: ${{ vars.ENABLE_AI_REVIEW == 'true' && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request for the Credexus marketing site (React Router v7, Tailwind, Vercel).
+            Focus on: correctness, accessibility, SEO (meta, structured data), performance regressions
+            (bundle size, render-blocking work), security of form handling, and unverifiable marketing
+            claims (stats, testimonials, partner/affiliation language).
+            Leave inline comments for specific issues and one summary comment. Be concise.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
