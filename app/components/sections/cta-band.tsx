@@ -24,7 +24,7 @@ export function CtaBand({
 }) {
   return (
     <section className="container-x py-20">
-      <div className="border-border-strong relative isolate overflow-hidden rounded-3xl border px-6 pt-28 pb-16 text-center sm:px-16 sm:pt-40 sm:pb-20">
+      <div className="on-dark border-border-strong relative isolate overflow-hidden rounded-3xl border px-6 pt-28 pb-16 text-center sm:px-16 sm:pt-40 sm:pb-20">
         {/* Rays from the top center, fading to near-black at the bottom of the panel. */}
         <div className="absolute inset-0 -z-20 bg-[#03040f]" />
         <LightRays position={50} className="absolute inset-0 -z-10 size-full" />

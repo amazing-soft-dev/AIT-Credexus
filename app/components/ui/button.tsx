@@ -12,11 +12,12 @@ export const buttonVariants = cva(
           "bg-primary text-primary-foreground shadow-[0_8px_30px_-8px_rgb(90_107_255/0.7),inset_0_1px_0_rgb(255_255_255/0.25)] hover:bg-primary-strong hover:shadow-[0_8px_32px_0_rgb(14_62_255/0.45),inset_0_1px_0_rgb(255_255_255/0.25)]",
         secondary:
           "border border-border-strong bg-surface-2/70 text-foreground hover:border-accent/50 hover:bg-surface-2",
-        ghost: "text-muted hover:bg-white/5 hover:text-foreground",
+        ghost: "text-muted hover:bg-foreground/5 hover:text-foreground",
         link: "rounded-none px-0 text-accent underline-offset-4 hover:underline",
         // Avenna "Primary CTA" (White): hover → lavender fill + blue label, 0.4s spring.
+        // The dark drop shadow keeps the pill visible on the light header too.
         white:
-          "bg-white text-[#0b0d26] shadow-[0_8px_32px_-12px_rgb(255_255_255/0.45)] hover:bg-[rgb(224,227,250)] hover:text-[rgb(42,75,208)]",
+          "bg-white text-[#0b0d26] shadow-[0_8px_28px_-14px_rgb(16_22_60/0.55)] ring-1 ring-black/10 hover:bg-[rgb(224,227,250)] hover:text-[rgb(42,75,208)]",
       },
       size: {
         sm: "h-9 px-4",

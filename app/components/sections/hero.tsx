@@ -98,12 +98,12 @@ export function Hero() {
                 <AnimatedShinyText>AI training roles open across 4 regions</AnimatedShinyText>
                 <ArrowRight className="text-muted size-3" aria-hidden />
               </Link>
-              <h1 className="text-gradient mt-6 text-[40px] leading-[1.04] font-semibold [text-shadow:0_4px_30px_rgb(6_7_26/0.6)] sm:text-6xl lg:text-[72px]">
+              <h1 className="ray-title text-gradient mt-6 text-[40px] leading-[1.04] font-semibold sm:text-6xl lg:text-[72px]">
                 Get paid to train the <Accent>world&apos;s best</Accent> AI
               </h1>
             </m.div>
             <m.div style={{ y: copyDown }} className="flex flex-col items-center">
-              <p className="text-foreground/80 mt-6 max-w-xl text-base leading-relaxed [text-shadow:0_2px_16px_rgb(6_7_26/0.8)] sm:text-lg">
+              <p className="ray-copy text-foreground/80 mt-6 max-w-xl text-base leading-relaxed sm:text-lg">
                 Credexus fast-tracks software engineers in Latam, Asia, Europe and Canada into
                 remote, high-paying AI training and evaluation work.
               </p>
