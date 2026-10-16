@@ -1,0 +1,5 @@
+build
+.react-router
+.vercel
+node_modules
+package-lock.json
