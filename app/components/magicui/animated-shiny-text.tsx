@@ -9,8 +9,7 @@ export function AnimatedShinyText({
   return (
     <span
       className={cn(
-        "animate-shimmer bg-[length:200%_100%] bg-clip-text text-transparent",
-        "bg-[linear-gradient(110deg,#a2a8cf_35%,#ffffff_50%,#a2a8cf_65%)]",
+        "shiny-text animate-shimmer bg-[length:200%_100%] bg-clip-text text-transparent",
         className,
       )}
     >

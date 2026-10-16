@@ -7,12 +7,11 @@ import { cn } from "~/lib/utils";
  *
  * Two sun-ray sources sit just above the top edge (x = position %, y = -40% / -50% of height);
  * their angular intensity wobbles over time and fades with distance and depth, giving the
- * "sunlight under deep water" look. Defaults land on u_intensity 0.42, u_rays 0.21,
- * u_reach 0.22, colour rgb(142, 198, 255), animation speed 16 — brighter and longer than
- * the original Avenna map (intensity 13 → ~0.065).
+ * "sunlight under deep water" look. Defaults land on u_intensity 0.13, u_rays 0.14,
+ * u_reach 0.14, colour rgb(52, 102, 214), animation speed 16 — a deeper cobalt than the
+ * blown-out pale map (rgb(142, 198, 255) at intensity 84, which clamped the shafts to white).
  *
- * Optional floating particles reproduce Avenna's star/dust layer (80 grey dots, size 1,
- * slow upward drift with sideways sway).
+ * Optional floating particles reproduce Avenna's dust layer (slow upward drift with sway).
  *
  * The loop only runs while the element is on screen; reduced-motion users get one static
  * frame; without WebGL it falls back to a CSS gradient.
@@ -86,14 +85,14 @@ const map = (v: number, max: number) => (v / 100) * max;
 
 type Particle = { x: number; y: number; r: number; v: number; phase: number; sway: number };
 
-/** Sunlight through deep water — brighter than the original Avenna periwinkle. */
-const WATER_BLUE = [142, 198, 255] as const;
+/** Deep cobalt shafts. Pale sky blue at high intensity washes the nav out. */
+const WATER_BLUE = [52, 102, 214] as const;
 
 export function LightRays({
   className,
-  intensity = 84,
-  rays = 70,
-  reach = 44,
+  intensity = 26,
+  rays = 46,
+  reach = 28,
   position = 50,
   color = WATER_BLUE,
   speed = 16,
@@ -143,7 +142,7 @@ export function LightRays({
     const u = (n: string) => gl.getUniformLocation(prog, n);
     const c = [r / 255, g / 255, b / 255, 1];
     gl.uniform4fv(u("u_colors"), new Float32Array([...c, ...c]));
-    // 0–100 controls. Defaults: intensity 84 → 0.42, rays 70 → 0.21, reach 44 → 0.22.
+    // 0–100 controls. Defaults: intensity 26 → 0.13, rays 46 → 0.14, reach 28 → 0.14.
     gl.uniform1f(u("u_intensity"), map(intensity, 0.5));
     gl.uniform1f(u("u_rays"), map(rays, 0.3));
     gl.uniform1f(u("u_reach"), map(reach, 0.5));
@@ -205,7 +204,8 @@ export function LightRays({
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       if (ctx) {
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = "rgb(149, 149, 149)";
+        const light = document.documentElement.classList.contains("light");
+        ctx.fillStyle = light ? "rgb(70, 88, 140)" : "rgb(186, 206, 240)";
         for (const p of field) {
           p.y -= p.v * (dt / 16);
           if (p.y < -4) {
@@ -213,7 +213,7 @@ export function LightRays({
             p.x = Math.random() * W;
           }
           const x = p.x + Math.sin(now * 0.0006 + p.phase) * p.sway;
-          ctx.globalAlpha = 0.25 + 0.75 * Math.max(0, 1 - p.y / H);
+          ctx.globalAlpha = 0.14 + 0.4 * Math.max(0, 1 - p.y / H);
           ctx.beginPath();
           ctx.arc(x, p.y, p.r, 0, Math.PI * 2);
           ctx.fill();
@@ -244,7 +244,7 @@ export function LightRays({
   return (
     <div ref={wrapRef} aria-hidden className={cn("pointer-events-none overflow-hidden", className)}>
       {fallback ? (
-        <div className="absolute inset-0 bg-[radial-gradient(85%_78%_at_50%_-8%,rgb(142_198_255/0.55),transparent_74%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(85%_78%_at_50%_-8%,rgb(52_102_214/0.38),transparent_74%)]" />
       ) : (
         <canvas ref={glRef} className="absolute inset-0 size-full" />
       )}
