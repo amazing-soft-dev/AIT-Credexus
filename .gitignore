@@ -155,3 +155,6 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 !.env.example
+
+# Scratch captures used while designing the logo
+.tmp-logo-html/
