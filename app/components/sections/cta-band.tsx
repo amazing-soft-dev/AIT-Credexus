@@ -25,10 +25,10 @@ export function CtaBand({
   return (
     <section className="container-x py-20">
       <div className="border-border-strong relative isolate overflow-hidden rounded-3xl border px-6 pt-28 pb-16 text-center sm:px-16 sm:pt-40 sm:pb-20">
-        {/* Avenna CTA: animated light rays from the top edge over near-black */}
+        {/* Rays from the top center, fading to near-black at the bottom of the panel. */}
         <div className="absolute inset-0 -z-20 bg-[#03040f]" />
-        <LightRays className="absolute inset-0 -z-10 size-full" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-2/3 bg-gradient-to-t from-[#03040f] to-transparent" />
+        <LightRays position={50} className="absolute inset-0 -z-10 size-full" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-transparent from-[18%] via-[#03040f]/55 to-[#03040f]" />
         <BlurFade y={30}>
           <h2 className="text-gradient mx-auto max-w-2xl text-3xl leading-[1.1] font-semibold sm:text-5xl">
             {title}

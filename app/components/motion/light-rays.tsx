@@ -7,8 +7,9 @@ import { cn } from "~/lib/utils";
  *
  * Two sun-ray sources sit just above the top edge (x = position %, y = -40% / -50% of height);
  * their angular intensity wobbles over time and fades with distance and depth, giving the
- * "sunlight under deep water" look. Avenna's settings: rays 32, reach 16, intensity 13,
- * position 50, colour rgb(83, 115, 229), animation speed 10.
+ * "sunlight under deep water" look. Defaults land on u_intensity 0.42, u_rays 0.21,
+ * u_reach 0.22, colour rgb(142, 198, 255), animation speed 16 — brighter and longer than
+ * the original Avenna map (intensity 13 → ~0.065).
  *
  * Optional floating particles reproduce Avenna's star/dust layer (80 grey dots, size 1,
  * slow upward drift with sideways sway).
@@ -85,16 +86,17 @@ const map = (v: number, max: number) => (v / 100) * max;
 
 type Particle = { x: number; y: number; r: number; v: number; phase: number; sway: number };
 
-const AVENNA_BLUE = [83, 115, 229] as const;
+/** Sunlight through deep water — brighter than the original Avenna periwinkle. */
+const WATER_BLUE = [142, 198, 255] as const;
 
 export function LightRays({
   className,
-  intensity = 13,
-  rays = 32,
-  reach = 16,
+  intensity = 84,
+  rays = 70,
+  reach = 44,
   position = 50,
-  color = AVENNA_BLUE,
-  speed = 10,
+  color = WATER_BLUE,
+  speed = 16,
   particles = 0,
 }: Props) {
   const wrapRef = React.useRef<HTMLDivElement>(null);
@@ -141,6 +143,7 @@ export function LightRays({
     const u = (n: string) => gl.getUniformLocation(prog, n);
     const c = [r / 255, g / 255, b / 255, 1];
     gl.uniform4fv(u("u_colors"), new Float32Array([...c, ...c]));
+    // 0–100 controls. Defaults: intensity 84 → 0.42, rays 70 → 0.21, reach 44 → 0.22.
     gl.uniform1f(u("u_intensity"), map(intensity, 0.5));
     gl.uniform1f(u("u_rays"), map(rays, 0.3));
     gl.uniform1f(u("u_reach"), map(reach, 0.5));
@@ -241,7 +244,7 @@ export function LightRays({
   return (
     <div ref={wrapRef} aria-hidden className={cn("pointer-events-none overflow-hidden", className)}>
       {fallback ? (
-        <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_0%,rgb(83_115_229/0.45),transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(85%_78%_at_50%_-8%,rgb(142_198_255/0.55),transparent_74%)]" />
       ) : (
         <canvas ref={glRef} className="absolute inset-0 size-full" />
       )}

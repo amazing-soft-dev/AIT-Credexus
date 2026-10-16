@@ -10,7 +10,7 @@ import type { Route } from "./+types/platforms";
 
 export const meta: Route.MetaFunction = () =>
   seo({
-    title: "AI Training Platforms Our Candidates Work On",
+    title: "Our Partners",
     description: `Explore the ${platforms.length} AI training and evaluation platforms Credexus candidates work on — from Outlier and Mercor to Turing and Alignerr.`,
     path: "/platforms",
     jsonLd: [
@@ -38,7 +38,7 @@ export default function Platforms() {
     <>
       <PageHero
         eyebrow="Platforms"
-        title="Platforms our candidates work on"
+        title="Our Partners"
         description="One application to Credexus covers all of them. We'll tell you which fit your profile best."
       />
       <section className="container-x pb-8">
@@ -51,7 +51,7 @@ export default function Platforms() {
                 className="card group hover:border-border-strong hover:bg-surface flex h-full flex-col p-6 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <PlatformMark platform={p} className="size-10 text-xs" />
+                  <PlatformMark platform={p} className="h-10 max-w-[9rem]" />
                   <div className="min-w-0">
                     <h2 className="text-foreground truncate font-semibold">{p.name}</h2>
                     <p className="text-subtle truncate text-xs">

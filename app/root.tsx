@@ -73,13 +73,15 @@ export default function App() {
     <LazyMotion features={loadMotionFeatures} strict>
       <MotionConfig reducedMotion="user">
         <SmoothScroll />
-        {/* Avenna layout background: animated light rays + drifting particles over the top 800px */}
-        <LightRays particles={80} className="absolute inset-x-0 top-0 h-[800px]" />
-        <Header />
-        <main id="main" className="relative overflow-x-clip">
-          <Outlet />
-        </main>
-        <Footer />
+        {/* Page rays sit on their own layer; header and page content stay above them. */}
+        <LightRays particles={80} className="absolute inset-x-0 top-0 z-0 h-[800px]" />
+        <div className="relative z-10">
+          <Header />
+          <main id="main" className="relative overflow-x-clip">
+            <Outlet />
+          </main>
+          <Footer />
+        </div>
       </MotionConfig>
     </LazyMotion>
   );
