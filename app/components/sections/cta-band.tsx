@@ -1,7 +1,9 @@
 import type * as React from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
+import { BlurFade } from "~/components/magicui/blur-fade";
 import { BorderBeam } from "~/components/magicui/border-beam";
+import { LightRays } from "~/components/motion/light-rays";
 import { Button } from "~/components/ui/button";
 import { Accent } from "./section-heading";
 
@@ -22,26 +24,25 @@ export function CtaBand({
 }) {
   return (
     <section className="container-x py-20">
-      <div className="border-border-strong relative isolate overflow-hidden rounded-3xl border px-6 py-16 text-center sm:px-16 sm:py-20">
-        <picture>
-          <source media="(min-width: 768px)" srcSet="/images/mesh-1400.webp" />
-          <img
-            src="/images/mesh-800.webp"
-            alt=""
-            loading="lazy"
-            decoding="async"
-            width={900}
-            height={795}
-            className="absolute inset-0 -z-20 size-full object-cover opacity-70"
-          />
-        </picture>
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgb(6_7_26/0.6),rgb(6_7_26/0.85)_80%)]" />
-        <h2 className="text-gradient mx-auto max-w-2xl text-3xl leading-[1.1] font-semibold sm:text-5xl">
-          {title}
-        </h2>
-        <p className="text-foreground/80 mx-auto mt-5 max-w-xl text-base sm:text-lg">{body}</p>
-        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button asChild size="lg">
+      <div className="border-border-strong relative isolate overflow-hidden rounded-3xl border px-6 pt-28 pb-16 text-center sm:px-16 sm:pt-40 sm:pb-20">
+        {/* Avenna CTA: animated light rays from the top edge over near-black */}
+        <div className="absolute inset-0 -z-20 bg-[#03040f]" />
+        <LightRays className="absolute inset-0 -z-10 size-full" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-2/3 bg-gradient-to-t from-[#03040f] to-transparent" />
+        <BlurFade y={30}>
+          <h2 className="text-gradient mx-auto max-w-2xl text-3xl leading-[1.1] font-semibold sm:text-5xl">
+            {title}
+          </h2>
+        </BlurFade>
+        <BlurFade y={30} delay={0.1}>
+          <p className="text-foreground/80 mx-auto mt-5 max-w-xl text-base sm:text-lg">{body}</p>
+        </BlurFade>
+        <BlurFade
+          y={30}
+          delay={0.2}
+          className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
+        >
+          <Button asChild size="lg" variant="white">
             <Link to={primary.to}>
               {primary.label} <ArrowRight />
             </Link>
@@ -51,7 +52,7 @@ export function CtaBand({
               <Link to={secondary.to}>{secondary.label}</Link>
             </Button>
           )}
-        </div>
+        </BlurFade>
         <BorderBeam size={220} duration={10} />
       </div>
     </section>

@@ -34,7 +34,7 @@ export const AccordionTrigger = React.forwardRef<
       {...props}
     >
       {children}
-      <span className="border-border-strong text-accent grid size-7 shrink-0 place-items-center rounded-full border transition-transform duration-300 group-data-[state=open]:rotate-45">
+      <span className="border-border-strong text-accent grid size-7 shrink-0 place-items-center rounded-full border transition-transform duration-[400ms] ease-[cubic-bezier(0.34,1.36,0.64,1)] group-data-[state=open]:rotate-45">
         <Plus className="size-3.5" aria-hidden />
       </span>
     </AccordionPrimitive.Trigger>
@@ -46,13 +46,18 @@ export const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
+  // forceMount keeps answers in the HTML for SEO; .acc-content animates the height.
   <AccordionPrimitive.Content
     ref={ref}
     forceMount
-    className="text-muted overflow-hidden text-[15px] leading-relaxed data-[state=closed]:hidden"
+    className="acc-content text-muted text-[15px] leading-relaxed"
     {...props}
   >
-    <div className={cn("pr-10 pb-5", className)}>{children}</div>
+    <div className="acc-grid">
+      <div>
+        <div className={cn("pr-10 pb-5", className)}>{children}</div>
+      </div>
+    </div>
   </AccordionPrimitive.Content>
 ));
 AccordionContent.displayName = "AccordionContent";

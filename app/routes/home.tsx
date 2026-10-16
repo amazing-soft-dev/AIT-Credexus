@@ -5,6 +5,12 @@ import { Benefits } from "~/components/sections/benefits";
 import { CtaBand } from "~/components/sections/cta-band";
 import { FaqList, faqLd } from "~/components/sections/faq-list";
 import { Hero } from "~/components/sections/hero";
+import { MatchShowcase } from "~/components/sections/match-showcase";
+import { Mission } from "~/components/sections/mission";
+import { WorkTabs } from "~/components/sections/work-tabs";
+import { BlurFade } from "~/components/magicui/blur-fade";
+import { ScrollZoom } from "~/components/motion/scroll-zoom";
+import { STAGGER } from "~/lib/motion";
 import { JobCard } from "~/components/sections/job-card";
 import { PlatformMarquee } from "~/components/sections/platform-marquee";
 import { RegionsGrid } from "~/components/sections/regions-grid";
@@ -45,8 +51,15 @@ export default function Home() {
     <>
       <Hero />
       <PlatformMarquee />
+      <MatchShowcase />
+      <div className="cv-auto">
+        <WorkTabs />
+      </div>
+      <div className="cv-auto">
+        <Mission />
+      </div>
 
-      <section className="container-x py-20">
+      <section className="cv-auto container-x py-20">
         <SectionHeading
           eyebrow="Why Credexus"
           title={
@@ -64,7 +77,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="container-x py-20">
+      <section className="cv-auto container-x py-20">
         <SectionHeading
           eyebrow="How it works"
           title={
@@ -86,7 +99,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="container-x py-20">
+      <section className="cv-auto container-x py-20">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <SectionHeading
             align="left"
@@ -101,24 +114,28 @@ export default function Home() {
           </Button>
         </div>
         <ul className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {jobs.slice(0, 3).map((j) => (
-            <li key={j.id}>
+          {jobs.slice(0, 3).map((j, i) => (
+            <BlurFade as="li" key={j.id} delay={i * STAGGER}>
               <JobCard job={j} />
-            </li>
+            </BlurFade>
           ))}
         </ul>
       </section>
 
-      <section className="container-x py-20">
-        <SectionHeading
-          eyebrow="Regions"
-          title={
-            <>
-              Built for engineers <Accent>everywhere</Accent> AI needs them
-            </>
-          }
-          description="We focus on four regions where great engineers are underrepresented on AI training platforms."
-        />
+      <section className="cv-auto container-x overflow-x-clip py-24">
+        {/* Avenna "Meet the Expert": heading zooms from 1.8× to 1× as it scrolls in */}
+        <ScrollZoom>
+          <SectionHeading
+            animate={false}
+            eyebrow="Regions"
+            title={
+              <>
+                Built for engineers <Accent>everywhere</Accent> AI needs them
+              </>
+            }
+            description="We focus on four regions where great engineers are underrepresented on AI training platforms."
+          />
+        </ScrollZoom>
         <div className="mt-14">
           <RegionsGrid />
         </div>
@@ -126,7 +143,7 @@ export default function Home() {
 
       <Testimonials />
 
-      <section className="container-x grid gap-12 py-20 lg:grid-cols-[1fr_1.4fr]">
+      <section className="cv-auto container-x grid gap-12 py-20 lg:grid-cols-[1fr_1.4fr]">
         <SectionHeading
           align="left"
           eyebrow="FAQ"
