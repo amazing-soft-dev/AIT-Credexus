@@ -150,14 +150,14 @@ If a check fails, the PR stays open with the report comment. Push a fix to the s
 
 ### GitHub configuration
 
-| Where                                               | Setting                                                      | Value                                                                                                                |
-| --------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Settings → Actions → General → Workflow permissions | **Read and write permissions**                               | Required: the pipeline pushes merges                                                                                 |
-| Same page                                           | **Allow GitHub Actions to create and approve pull requests** | Required: the pipeline opens the PRs                                                                                 |
-| Settings → General → Pull Requests                  | Merge button                                                 | Keep "Allow merge commits". Turn off squash and rebase merging.                                                      |
-| Vercel                                              | Import this GitHub repo                                  | Production branch `main`. Set `RESEND_API_KEY`, `LEADS_TO_EMAIL`, `LEADS_FROM_EMAIL`, and `VITE_SITE_URL` in the Vercel project environment. |
-| Actions secret                                      | `ANTHROPIC_API_KEY` **or** `CLAUDE_CODE_OAUTH_TOKEN`         | Turns on Claude review comments. For the second option, run `claude setup-token` (uses a Claude Pro/Max plan).       |
-| Actions variable (optional)                         | `AUTO_MERGE_TO_MAIN`                                         | Set to `false` to stop at an open, reviewed dev → main PR.                                                           |
+| Where                                               | Setting                                                      | Value                                                                                                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings → Actions → General → Workflow permissions | **Read and write permissions**                               | Required: the pipeline pushes merges                                                                                                         |
+| Same page                                           | **Allow GitHub Actions to create and approve pull requests** | Required: the pipeline opens the PRs                                                                                                         |
+| Settings → General → Pull Requests                  | Merge button                                                 | Keep "Allow merge commits". Turn off squash and rebase merging.                                                                              |
+| Vercel                                              | Import this GitHub repo                                      | Production branch `main`. Set `RESEND_API_KEY`, `LEADS_TO_EMAIL`, `LEADS_FROM_EMAIL`, and `VITE_SITE_URL` in the Vercel project environment. |
+| Actions secret                                      | `ANTHROPIC_API_KEY` **or** `CLAUDE_CODE_OAUTH_TOKEN`         | Turns on Claude review comments. For the second option, run `claude setup-token` (uses a Claude Pro/Max plan).                               |
+| Actions variable (optional)                         | `AUTO_MERGE_TO_MAIN`                                         | Set to `false` to stop at an open, reviewed dev → main PR.                                                                                   |
 
 Don't add branch protection that requires approving reviews: the pipeline merges with the built-in `GITHUB_TOKEN`, which can't approve its own PRs.
 
