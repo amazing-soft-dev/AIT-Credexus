@@ -102,15 +102,56 @@ jobs:
           head="${{ inputs.head }}"; base="${{ inputs.base }}"
           pr=$(gh pr list --head "$head" --base "$base" --state open --json number --jq '.[0].number')
           if [ -z "$pr" ]; then
-            commits=$(git log --no-merges --reverse --format='- %s (%h)' "origin/$base..origin/$head")
+            # Release PRs stay a promote line plus the commit list.
+            # Feature PRs use .github/pull_request_template.md, filled from one commit.
             if [ "${{ inputs.kind }}" = "release" ]; then
               title="release: promote dev to main ($(date -u +%Y-%m-%d))"
+              commits=$(git log --no-merges --reverse --format='- %s (%h)' "origin/$base..origin/$head")
+              body=$(printf '%s\n\n### Commits\n%s\n\n---\n_Opened automatically by the delivery pipeline. It merges with a merge commit (no squash) once all checks pass._' \
+                "Promotes \`$head\` into \`$base\`." "$commits")
             else
-              title=$(git log --no-merges --reverse --format=%s "origin/$base..origin/$head" | head -1)
-              [ -z "$title" ] && title="$head"
+              sha=$(git log --no-merges --format=%H "origin/$base..origin/$head" | tail -1)
+              if [ -n "$sha" ]; then
+                subject=$(git log -1 --format=%s "$sha")
+                details=$(git log -1 --format=%b "$sha")
+              else
+                subject=""
+                details=""
+              fi
+              [ -z "$subject" ] && subject="$head"
+              title="$subject"
+              if [ -n "$(printf '%s' "$details" | tr -d '[:space:]')" ]; then
+                why=$(printf '%s\n\n%s' "$subject" "$details")
+              else
+                why="$subject"
+              fi
+              prefix=$(printf '%s\n' "$subject" | sed -n 's/^\([a-z][a-z]*\).*/\1/p')
+              feat=" "; fix=" "; docs=" "; build=" "
+              case "$prefix" in
+                feat) feat=x ;;
+                fix) fix=x ;;
+                docs|style|refactor|perf|test) docs=x ;;
+                build|ci|chore) build=x ;;
+              esac
+              body=$(printf '%s\n' \
+                "## What & why" \
+                "" \
+                "$why" \
+                "" \
+                "## Type" \
+                "" \
+                "- [${feat}] feat" \
+                "- [${fix}] fix" \
+                "- [${docs}] docs / style / refactor / perf / test" \
+                "- [${build}] build / ci / chore" \
+                "" \
+                "## Checklist" \
+                "" \
+                "- [ ] Commits follow Conventional Commits (\`type(scope): subject\`)" \
+                "- [ ] \`npm run lint && npm run typecheck && npm run build\` pass locally" \
+                "- [ ] Checked pages on mobile and desktop" \
+                "- [ ] Copy/claims reviewed (no unverified stats, testimonials or partner claims)")
             fi
-            body=$(printf '%s\n\n### Commits\n%s\n\n---\n_Opened automatically by the delivery pipeline. It merges with a merge commit (no squash) once all checks pass._' \
-              "Promotes \`$head\` into \`$base\`." "$commits")
             if ! out=$(gh pr create --head "$head" --base "$base" --title "$title" --body "$body" 2>&1); then
               echo "$out"
               if echo "$out" | grep -qi "not permitted to create"; then
