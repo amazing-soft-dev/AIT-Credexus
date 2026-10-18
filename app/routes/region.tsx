@@ -15,8 +15,8 @@ import { regionBySlug } from "~/data/regions";
 import { breadcrumbLd, cacheHeaders, seo } from "~/lib/seo";
 import type { Route } from "./+types/region";
 
-export function loader({ request }: Route.LoaderArgs) {
-  const slug = new URL(request.url).pathname.replace(/^\/|\/$/g, "");
+export function loader({ url }: Route.LoaderArgs) {
+  const slug = url.pathname.replace(/^\/|\/$/g, "");
   const region = regionBySlug(slug);
   if (!region) throw data(null, { status: 404 });
   return { region, roles: jobs.filter((j) => j.regions.includes(region.slug)).slice(0, 6) };
