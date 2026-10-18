@@ -14,6 +14,7 @@ import { STAGGER } from "~/lib/motion";
 import { JobCard } from "~/components/sections/job-card";
 import { PlatformMarquee } from "~/components/sections/platform-marquee";
 import { RegionsGrid } from "~/components/sections/regions-grid";
+import { TalentProfiles } from "~/components/sections/talent-cards";
 import { Accent, SectionHeading } from "~/components/sections/section-heading";
 import { Stats } from "~/components/sections/stats";
 import { Steps } from "~/components/sections/steps";
@@ -140,6 +141,8 @@ export default function Home() {
           <RegionsGrid />
         </div>
       </section>
+
+      <TalentProfiles cta={{ label: "Apply as an engineer", to: "/for-engineers#apply" }} />
 
       <Testimonials />
 

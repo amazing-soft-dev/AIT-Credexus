@@ -12,6 +12,7 @@ import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
 import { LightRays } from "~/components/motion/light-rays";
 import { SmoothScroll } from "~/components/motion/smooth-scroll";
+import { applyTheme, readTheme, themeBootScript, useClientLayoutEffect } from "~/lib/theme";
 import type { Route } from "./+types/root";
 import * as React from "react";
 import "./app.css";
@@ -25,13 +26,21 @@ export const links: LinksFunction = () => [
 
 const loadMotionFeatures = () => import("~/lib/motion-features").then((mod) => mod.default);
 
+function ThemeSync() {
+  useClientLayoutEffect(() => {
+    applyTheme(readTheme());
+  }, []);
+  return null;
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#06071a" />
+        <meta name="theme-color" content="#06071a" suppressHydrationWarning />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
         <link
           rel="preload"
           href="/fonts/geist-latin.woff2"
@@ -43,9 +52,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="min-h-dvh">
+        <ThemeSync />
         <a
           href="#main"
-          className="text-background sr-only z-[100] rounded-full bg-white px-4 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+          className="text-background bg-foreground sr-only z-[100] rounded-full px-4 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
         >
           Skip to content
         </a>

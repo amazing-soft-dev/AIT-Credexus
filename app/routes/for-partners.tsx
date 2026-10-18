@@ -4,6 +4,7 @@ import { BlurFade } from "~/components/magicui/blur-fade";
 import { FaqList, faqLd } from "~/components/sections/faq-list";
 import { PageHero } from "~/components/sections/page-hero";
 import { RegionsGrid } from "~/components/sections/regions-grid";
+import { TalentProfiles } from "~/components/sections/talent-cards";
 import { Accent, SectionHeading } from "~/components/sections/section-heading";
 import { faqs, partnerBenefits } from "~/data/content";
 import { site } from "~/data/site";
@@ -82,6 +83,8 @@ export default function ForPartners() {
           <RegionsGrid />
         </div>
       </section>
+
+      <TalentProfiles cta={{ label: "Inquire about engineers", to: "#inquire" }} />
 
       <section id="inquire" className="container-x scroll-mt-24 py-20">
         <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr]">

@@ -131,8 +131,29 @@
 
 @layer base {
   html {
-    color-scheme: dark;
     -webkit-text-size-adjust: 100%;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  /* Light palette. Dark tokens stay on :root via @theme so the default is night. */
+  html.light {
+    color-scheme: light;
+    --color-background: #f4f6fb;
+    --color-surface: #ffffff;
+    --color-surface-2: #e7ebf6;
+    --color-foreground: #14172c;
+    --color-muted: #3d4468;
+    --color-subtle: #5c6488;
+    --color-border: rgb(20 26 70 / 0.12);
+    --color-border-strong: rgb(20 26 70 / 0.22);
+    --color-primary: #3a48d8;
+    --color-primary-strong: #2c39b8;
+    --color-primary-foreground: #ffffff;
+    --color-accent: #2a36b0;
+    --color-glow: #5b6ae8;
+    --color-success: #157a3a;
+    --color-danger: #c53636;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
@@ -142,6 +163,10 @@
   ::selection {
     background: rgb(90 107 255 / 0.45);
     color: #fff;
+  }
+  html.light ::selection {
+    background: rgb(58 72 216 / 0.22);
+    color: #14172c;
   }
   :focus-visible {
     outline: 2px solid var(--color-accent);
@@ -178,6 +203,46 @@
     background-clip: text;
     color: transparent;
   }
+  html.light .text-gradient {
+    background-image: linear-gradient(180deg, #16192e 12%, #3140c4 100%);
+  }
+  /* The closing ray card stays on a night field in both themes. */
+  html.light .on-dark {
+    --color-background: #06071a;
+    --color-surface: #0c0e26;
+    --color-surface-2: #12153a;
+    --color-foreground: #eceeff;
+    --color-muted: #a2a8cf;
+    --color-subtle: #8a90bd;
+    --color-border: rgb(150 160 255 / 0.12);
+    --color-border-strong: rgb(150 160 255 / 0.24);
+    --color-primary: #4c5cf3;
+    --color-primary-strong: #3d4ce0;
+    --color-primary-foreground: #ffffff;
+    --color-accent: #9fb0ff;
+    --color-glow: #3f4fd9;
+    --color-success: #4ade80;
+    --color-danger: #f87171;
+  }
+  html.light .on-dark .text-gradient {
+    background-image: linear-gradient(180deg, #ffffff 20%, #b7c0ff 100%);
+  }
+  .shiny-text {
+    background-image: linear-gradient(110deg, #a2a8cf 35%, #ffffff 50%, #a2a8cf 65%);
+  }
+  html.light .shiny-text {
+    background-image: linear-gradient(110deg, #4c5478 35%, #14172c 50%, #4c5478 65%);
+  }
+  .ray-title {
+    text-shadow: 0 4px 30px rgb(6 7 26 / 0.55);
+  }
+  .ray-copy {
+    text-shadow: 0 2px 16px rgb(6 7 26 / 0.75);
+  }
+  html.light .ray-title,
+  html.light .ray-copy {
+    text-shadow: none;
+  }
   .card {
     @apply border-border bg-surface/60 rounded-2xl border;
   }
@@ -189,6 +254,9 @@
   .bg-dots {
     background-image: radial-gradient(rgb(160 170 255 / 0.18) 1px, transparent 1px);
     background-size: 22px 22px;
+  }
+  html.light .bg-dots {
+    background-image: radial-gradient(rgb(40 50 110 / 0.2) 1px, transparent 1px);
   }
   .prose-legal h2 {
     @apply text-foreground mt-10 mb-3 text-xl font-semibold;
