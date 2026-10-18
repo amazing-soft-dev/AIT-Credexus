@@ -10,8 +10,7 @@ import { breadcrumbLd, cacheHeaders, seo } from "~/lib/seo";
 import { cn } from "~/lib/utils";
 import type { Route } from "./+types/jobs";
 
-export function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
+export function loader({ url }: Route.LoaderArgs) {
   const regionParam = url.searchParams.get("region");
   const region = regionParam && regionBySlug(regionParam) ? (regionParam as RegionSlug) : null;
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 80);
