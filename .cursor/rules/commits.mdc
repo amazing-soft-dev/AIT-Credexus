@@ -1,0 +1,51 @@
+---
+description: Conventional Commits for generated messages, and the pull request template for descriptions
+alwaysApply: true
+---
+
+# Commits and pull requests
+
+## Commit messages
+
+Write every commit subject as Conventional Commits with a scope:
+
+`type(scope): subject`
+
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+- Subject is imperative, lowercase, and has no trailing period
+- Put extra explanation in the commit body, not in the subject
+- Do not put the pull request template, checkboxes, or markdown headings in the commit message
+
+```
+fix(regions): read the normalized loader URL
+```
+
+## Pull request descriptions
+
+Hand-written pull request descriptions use `.github/pull_request_template.md`:
+
+- **What & why:** the change and the reason, from the commit subject plus the commit body when there is one
+- **Type:** check the one box that matches the prefix (`feat`, `fix`, `docs` / `style` / `refactor` / `perf` / `test`, or `build` / `ci` / `chore`)
+- **Checklist:** leave every box unchecked until a person confirms it
+
+```
+## What & why
+
+fix(regions): read the normalized loader URL
+
+## Type
+
+- [ ] feat
+- [x] fix
+- [ ] docs / style / refactor / perf / test
+- [ ] build / ci / chore
+
+## Checklist
+
+- [ ] Commits follow Conventional Commits (`type(scope): subject`)
+- [ ] `npm run lint && npm run typecheck && npm run build` pass locally
+- [ ] Checked pages on mobile and desktop
+- [ ] Copy/claims reviewed (no unverified stats, testimonials or partner claims)
+```
+
+Release pull requests (`dev` into `main`) stay a promote line plus the commit list.
