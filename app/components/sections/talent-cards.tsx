@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { BlurFade } from "~/components/magicui/blur-fade";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { regionBySlug } from "~/data/regions";
 import { sampleEngineers, type SampleEngineer } from "~/data/talent";
@@ -22,12 +21,7 @@ export function TalentCard({ engineer }: { engineer: SampleEngineer }) {
         className="aspect-[4/5] w-full object-cover object-[center_18%]"
       />
       <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-center justify-between gap-3">
-          <Badge variant="outline" className="border-dashed">
-            Example
-          </Badge>
-          {region ? <span className="text-subtle text-xs">{region.short}</span> : null}
-        </div>
+        {region ? <span className="text-subtle text-xs">{region.short}</span> : null}
         <h3 className="text-foreground mt-4 text-lg leading-snug font-semibold">{engineer.name}</h3>
         <p className="text-muted mt-1 text-sm">{engineer.role}</p>
         <p className="text-foreground/90 mt-3 text-sm font-medium">
