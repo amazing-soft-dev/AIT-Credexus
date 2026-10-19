@@ -3,7 +3,7 @@ name: Promote stage
 # Reusable stage used by pipeline.yml. For one head → base promotion it:
 #   1. opens (or reuses) the pull request
 #   2. runs commit lint, format, lint, typecheck and build
-#   3. posts an automated review (Claude, when a key is configured)
+#   3. posts an automated review (Claude, when a key is configured) after checks, leading with any failure
 #   4. posts/updates a CI report comment
 #   5. merges with a merge commit (never squash) when every check passed.
 #      A feature branch more than one commit ahead of dev is not merged.
@@ -193,6 +193,11 @@ jobs:
       typecheck: ${{ steps.typecheck.outcome }}
       build: ${{ steps.build.outcome }}
       size: ${{ steps.size.outputs.table }}
+      commits_excerpt: ${{ steps.commits.outputs.excerpt }}
+      format_excerpt: ${{ steps.format.outputs.excerpt }}
+      lint_excerpt: ${{ steps.lint.outputs.excerpt }}
+      typecheck_excerpt: ${{ steps.typecheck.outputs.excerpt }}
+      build_excerpt: ${{ steps.build.outputs.excerpt }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -203,30 +208,55 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Each check records its outcome; the report job summarises them all.
+      # Records the command's exit status (via the step outcome) and keeps about the last 40 lines.
+      # The report quotes a failure; this job never commits or pushes a repair.
+      - name: Check output helper
+        run: |
+          cat > "$RUNNER_TEMP/capture-check.sh" << 'EOF'
+          #!/bin/bash
+          set -uo pipefail
+          log="$1"
+          shift
+          set +e
+          "$@" >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          excerpt=$(tail -n 40 "$log" | tr -d '\r' | sed '/^CREDEXUS_EXCERPT_END$/d')
+          if [ "${#excerpt}" -gt 8000 ]; then
+            excerpt=${excerpt: -8000}
+          fi
+          {
+            echo 'excerpt<<CREDEXUS_EXCERPT_END'
+            printf '%s\n' "$excerpt"
+            echo 'CREDEXUS_EXCERPT_END'
+          } >> "$GITHUB_OUTPUT"
+          exit "$status"
+          EOF
       - name: Conventional commits
         id: commits
         if: inputs.kind == 'feature'
         continue-on-error: true
         run: |
           git fetch --quiet origin "${{ inputs.base }}"
-          npx commitlint --from "origin/${{ inputs.base }}" --to HEAD --verbose
+          bash "$RUNNER_TEMP/capture-check.sh" /tmp/commits.log \
+            npx commitlint --from "origin/${{ inputs.base }}" --to HEAD --verbose
       - name: Format
         id: format
         continue-on-error: true
-        run: npm run format:check
+        run: bash "$RUNNER_TEMP/capture-check.sh" /tmp/format.log npm run format:check
       - name: Lint
         id: lint
         continue-on-error: true
-        run: npm run lint
+        run: bash "$RUNNER_TEMP/capture-check.sh" /tmp/lint.log npm run lint
       - name: Typecheck
         id: typecheck
         continue-on-error: true
-        run: npm run typecheck
+        run: bash "$RUNNER_TEMP/capture-check.sh" /tmp/typecheck.log npm run typecheck
       - name: Build
         id: build
         continue-on-error: true
-        run: npm run build
+        run: bash "$RUNNER_TEMP/capture-check.sh" /tmp/build.log npm run build
       - name: Bundle size
         id: size
         if: steps.build.outcome == 'success'
@@ -252,14 +282,27 @@ jobs:
 
   review:
     name: Automated review
-    needs: prepare
-    if: needs.prepare.outputs.skip == 'false'
+    needs: [prepare, checks]
+    # Checks stay the merge gate. Run after them even when they fail, so the prompt can quote the failure.
+    if: >-
+      always() && needs.prepare.result == 'success' && needs.prepare.outputs.skip == 'false' &&
+      (needs.checks.result == 'success' || needs.checks.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       PR: ${{ needs.prepare.outputs.pr }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      COMMITS: ${{ needs.checks.outputs.commits }}
+      FORMAT: ${{ needs.checks.outputs.format }}
+      LINT: ${{ needs.checks.outputs.lint }}
+      TYPECHECK: ${{ needs.checks.outputs.typecheck }}
+      BUILD: ${{ needs.checks.outputs.build }}
+      COMMITS_EXCERPT: ${{ needs.checks.outputs.commits_excerpt }}
+      FORMAT_EXCERPT: ${{ needs.checks.outputs.format_excerpt }}
+      LINT_EXCERPT: ${{ needs.checks.outputs.lint_excerpt }}
+      TYPECHECK_EXCERPT: ${{ needs.checks.outputs.typecheck_excerpt }}
+      BUILD_EXCERPT: ${{ needs.checks.outputs.build_excerpt }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -287,18 +330,38 @@ jobs:
         continue-on-error: true
         run: |
           npm install -g @anthropic-ai/claude-code@2 >/dev/null 2>&1
-          prompt="You are reviewing pull request #$PR in $GITHUB_REPOSITORY (${{ inputs.head }} → ${{ inputs.base }}).
-          The PR branch is checked out in the current directory. Use \`gh pr diff $PR\` and \`gh pr view $PR\` to inspect it.
+          prompt_file=$(mktemp)
+          cat > "$prompt_file" << EOF
+          You are reviewing pull request #${PR} in ${GITHUB_REPOSITORY} (${{ inputs.head }} → ${{ inputs.base }}).
+          The PR branch is checked out in the current directory. Use \`gh pr diff ${PR}\` and \`gh pr view ${PR}\` to inspect it.
+
+          Lead with the failed check. If any CI check failed, open the review by naming each failed check and quoting its output excerpt before any other finding. If every check passed, start with the verdict.
 
           Project: Credexus marketing site — React Router v7 SSR, Tailwind v4, shadcn/Magic UI, Framer Motion, Vercel.
           Review for: correctness and bugs; accessibility; SEO (meta, canonical, structured data, sitemap);
           performance regressions (bundle size, render-blocking work, hydration mismatches); security of form
           handling and file uploads; unverifiable marketing claims (stats, testimonials, partner/affiliation wording).
 
-          Post your review with: gh pr review $PR --comment --body \"<review>\"
+          Post your review with: gh pr review ${PR} --comment --body "<review>"
           Start the body with '### 🤖 Claude review'. Be concise: a short verdict, then a bulleted list of
-          concrete findings with file:line references, ordered by severity. If there is nothing worth changing, say so."
-          timeout 15m claude -p "$prompt" \
+          concrete findings with file:line references, ordered by severity. If there is nothing worth changing, say so.
+
+          CI check results and output excerpts follow.
+          EOF
+          append_check() {
+            printf '\n### %s (%s)\n' "$1" "$2"
+            if [ -n "$3" ]; then
+              printf '%s\n' "$3"
+            fi
+          }
+          {
+            append_check "Conventional commits" "$COMMITS" "$COMMITS_EXCERPT"
+            append_check "Formatting (Prettier)" "$FORMAT" "$FORMAT_EXCERPT"
+            append_check "Lint (ESLint)" "$LINT" "$LINT_EXCERPT"
+            append_check "Typecheck" "$TYPECHECK" "$TYPECHECK_EXCERPT"
+            append_check "Production build" "$BUILD" "$BUILD_EXCERPT"
+          } >> "$prompt_file"
+          timeout 15m claude -p "$(cat "$prompt_file")" \
             --allowedTools "Bash(gh pr diff:*)" "Bash(gh pr view:*)" "Bash(gh pr review:*)" "Bash(gh pr comment:*)" Read Grep Glob
 
   report:
@@ -317,6 +380,11 @@ jobs:
           LINT: ${{ needs.checks.outputs.lint }}
           TYPECHECK: ${{ needs.checks.outputs.typecheck }}
           BUILD: ${{ needs.checks.outputs.build }}
+          COMMITS_EXCERPT: ${{ needs.checks.outputs.commits_excerpt }}
+          FORMAT_EXCERPT: ${{ needs.checks.outputs.format_excerpt }}
+          LINT_EXCERPT: ${{ needs.checks.outputs.lint_excerpt }}
+          TYPECHECK_EXCERPT: ${{ needs.checks.outputs.typecheck_excerpt }}
+          BUILD_EXCERPT: ${{ needs.checks.outputs.build_excerpt }}
           SIZE_TABLE: ${{ needs.checks.outputs.size }}
           AUTO_MERGE: ${{ inputs.auto_merge }}
           ONE_COMMIT: ${{ needs.prepare.outputs.one_commit }}
@@ -326,29 +394,56 @@ jobs:
             const marker = "<!-- credexus-ci-report -->";
             const icon = (o) => (o === "success" ? "✅" : !o || o === "skipped" ? "⏭️" : "❌");
             const rows = [
-              ["Conventional commits", env.COMMITS, "npx commitlint --from origin/dev"],
-              ["Formatting (Prettier)", env.FORMAT, "npm run format"],
-              ["Lint (ESLint)", env.LINT, "npm run lint"],
-              ["Typecheck", env.TYPECHECK, "npm run typecheck"],
-              ["Production build", env.BUILD, "npm run build"],
+              ["Conventional commits", env.COMMITS, "npx commitlint --from origin/dev", env.COMMITS_EXCERPT],
+              ["Formatting (Prettier)", env.FORMAT, "npm run format", env.FORMAT_EXCERPT],
+              ["Lint (ESLint)", env.LINT, "npm run lint", env.LINT_EXCERPT],
+              ["Typecheck", env.TYPECHECK, "npm run typecheck", env.TYPECHECK_EXCERPT],
+              ["Production build", env.BUILD, "npm run build", env.BUILD_EXCERPT],
             ];
             const oneCommit = env.ONE_COMMIT !== "false";
+            const commitsFailed = env.COMMITS === "failure";
             const failed = rows.some(([, o]) => o === "failure") || !env.BUILD;
-            const next = !oneCommit
-              ? "Each commit needs its own branch. This branch is more than one commit ahead of the base, so the pipeline will not merge it."
-              : failed
-                ? "Fix the failing checks and push again — the pipeline re-runs automatically."
-                : env.AUTO_MERGE === "true"
-                  ? `All checks passed — merging with a merge commit${env.KIND === "feature" ? ", then promoting `dev` → `main`" : " and deploying to production"}.`
-                  : "All checks passed — ready for manual review and merge (auto-merge is off).";
+            const next = commitsFailed
+              ? "Open a new `fix/` or `feat/` branch from the latest `dev`, with one commit whose subject has no trailing period. Do not add a commit to the failing branch."
+              : !oneCommit
+                ? "Each commit needs its own branch. This branch is more than one commit ahead of the base, so the pipeline will not merge it."
+                : failed
+                  ? "Fix the failing checks and push again — the pipeline re-runs automatically."
+                  : env.AUTO_MERGE === "true"
+                    ? `All checks passed — merging with a merge commit${env.KIND === "feature" ? ", then promoting `dev` → `main`" : " and deploying to production"}.`
+                    : "All checks passed — ready for manual review and merge (auto-merge is off).";
+            const lines = [];
+            let tableOpen = false;
+            for (const [name, outcome, cmd, excerpt] of rows) {
+              if (!tableOpen) {
+                lines.push("| Check | Result | Fix locally |", "| --- | :---: | --- |");
+                tableOpen = true;
+              }
+              lines.push(`| ${name} | ${icon(outcome)} | \`${cmd}\` |`);
+              if (outcome === "failure") {
+                const bodyText = String(excerpt || "").replace(/\r\n/g, "\n").replace(/<\/details>/gi, "<\\/details>").trim();
+                const tickRun = (bodyText.match(/`+/g) || []).reduce((max, run) => Math.max(max, run.length), 0);
+                const fence = "`".repeat(Math.max(3, tickRun + 1));
+                lines.push(
+                  "",
+                  "<details>",
+                  `<summary>${name} output</summary>`,
+                  "",
+                  fence,
+                  bodyText || "_No output captured._",
+                  fence,
+                  "</details>",
+                  "",
+                );
+                tableOpen = false;
+              }
+            }
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
               marker,
               `### ${failed ? "❌ CI checks failed" : "✅ CI checks passed"}`,
               "",
-              "| Check | Result | Fix locally |",
-              "| --- | :---: | --- |",
-              ...rows.map(([name, o, cmd]) => `| ${name} | ${icon(o)} | \`${cmd}\` |`),
+              lines.join("\n"),
               "",
               env.SIZE_TABLE ? `<details><summary>Client bundle</summary>\n\n${env.SIZE_TABLE}\n</details>\n` : "",
               `**Next:** ${next}`,
