@@ -3,8 +3,15 @@ import { Link } from "react-router";
 import { BlurFade } from "~/components/magicui/blur-fade";
 import { Shine } from "~/components/motion/shine";
 import { Tilt } from "~/components/motion/tilt";
-import { regions } from "~/data/regions";
+import { regions, type RegionSlug } from "~/data/regions";
 import { STAGGER } from "~/lib/motion";
+
+const regionPhotoAlt: Record<RegionSlug, string> = {
+  latam: "Mexico City at night",
+  asia: "Tokyo at night",
+  europe: "Lisbon at night",
+  canada: "Toronto at night",
+};
 
 export function RegionsGrid({ exclude }: { exclude?: string }) {
   const list = regions.filter((r) => r.slug !== exclude);
@@ -23,9 +30,9 @@ export function RegionsGrid({ exclude }: { exclude?: string }) {
               <Shine className="-z-10" />
               <img
                 src={`/images/regions/${r.slug}.webp`}
-                alt=""
-                width={960}
-                height={540}
+                alt={regionPhotoAlt[r.slug]}
+                width={1280}
+                height={720}
                 loading="lazy"
                 decoding="async"
                 className="aspect-[16/9] w-full object-cover"
