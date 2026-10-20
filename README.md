@@ -124,11 +124,11 @@ Pages stay CDN-cacheable (`s-maxage=3600, stale-while-revalidate`).
 
 ## Git workflow (automated pipeline)
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org). Husky + commitlint check them when you commit, and the pipeline checks them again.
+Commits follow [Conventional Commits](https://www.conventionalcommits.org): `type(scope): subject`. The subject must not end with a period (commitlint `subject-full-stop`). Husky + commitlint check them when you commit, and the pipeline checks them again.
 
 `feat` · `fix` · `docs` · `test` · `refactor` · `perf` · `style` · `build` · `ci` · `chore` · `revert`
 
-**Make one branch per change.** Branch off the latest `dev`, commit, push. The pipeline handles the rest:
+**One commit per `feat/` or `fix/` branch.** Branch off the latest `dev`, commit once, and push. The pipeline only auto-merges a branch that is one commit ahead of `dev`.
 
 ```bash
 git checkout dev && git pull
@@ -137,16 +137,18 @@ git commit -m "feat(home): sharpen hero copy"
 git push -u origin feat/hero-copy
 ```
 
-| Step             | What `.github/workflows/pipeline.yml` does                                                          |
-| ---------------- | --------------------------------------------------------------------------------------------------- |
-| 1. Feature PR    | Opens a PR **feat/fix → dev**, or reuses one you opened yourself                                    |
-| 2. Checks        | Commitlint, Prettier, ESLint, typecheck, production build                                           |
-| 3. Review        | Posts a Claude review (`gh pr review`) and a **CI report** comment (results and bundle size)        |
-| 4. Merge         | If every check passed, merges with a **merge commit** (never squash) and deletes the feature branch |
-| 5. Release PR    | Opens or updates a PR **dev → main** and runs the same checks, review and report on it              |
-| 6. Merge to main | Merges with a merge commit (turn this off by setting the variable `AUTO_MERGE_TO_MAIN=false`)       |
+| Step          | What `.github/workflows/pipeline.yml` and `stage.yml` do                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1. Feature PR | Opens a PR **feat/fix → dev**, or reuses one you opened yourself                                                 |
+| 2. Checks     | Commitlint, Prettier, ESLint, typecheck, production build                                                        |
+| 3. CI report  | Posts a comment with the check results, bundle size, and a quote of any failed command output                    |
+| 4. Review     | Posts a Claude review (`gh pr review`) that leads with any failed check                                          |
+| 5. Merge      | If every check passed and the branch is one commit ahead of `dev`, merges with a **merge commit** (never squash) |
+| 6. Dev → main | Opens or updates a PR **dev → main**, runs the same checks, report and review, then merges with a merge commit   |
 
-If a check fails, the PR stays open with the report comment. Push a fix to the same branch and the pipeline runs again. Pushing to `dev` directly (or merging into it by hand) starts at step 5.
+Turn the dev → main merge off by setting the variable `AUTO_MERGE_TO_MAIN=false`. The CI report and the review both run after the checks, and the merge waits for both. The feature branch is deleted after the dev → main stage finishes. The pipeline has no deploy job. An imported Vercel project deploys `main`.
+
+A commit-message failure cannot be fixed by adding a second commit. Open a new branch from the latest `dev` with one commit whose subject does not end with a period. For any other check failure on a one-commit branch, fix it and push to the same branch. The pipeline runs again. A branch more than one commit ahead of `dev` is not merged. Pushing to `dev` directly (or merging into it by hand) starts at step 6.
 
 ### GitHub configuration
 
