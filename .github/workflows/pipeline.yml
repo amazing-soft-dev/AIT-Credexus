@@ -3,7 +3,6 @@ name: Pipeline
 # Delivery pipeline — the whole branching workflow, automated:
 #
 #   push feat/** or fix/** ──► PR feature → dev ──► checks + review ──► merge (merge commit)
-#   pull_request feat/** or fix/** → dev (opened by hand) ──► same feature stage
 #                                                                          │
 #                              PR dev → main ◄─────────────────────────────┘
 #                                   │
@@ -13,17 +12,16 @@ name: Pipeline
 #
 # A merge made with GITHUB_TOKEN does not start a new workflow, so dev → main
 # runs in this same workflow after the feature pull request merges.
-# A pull request into main whose head is already dev starts at the release stage.
 # Pushing to dev directly (or merging a PR into dev by hand) starts at the release stage.
+# A pull request you open by hand is picked up by the push of its branch; the stage reuses it.
+# There is no pull_request trigger. The PRs this workflow opens with GITHUB_TOKEN started a
+# second run as github-actions[bot] that failed before any job ran, leaving a red check on every PR.
 # The feature branch is deleted only after the release stage finishes. Deleting it
 # earlier cancels this run before dev → main can start.
 # Repository settings required: see "GitHub configuration" in README.md.
 on:
   push:
     branches: ["feat/**", "fix/**", "dev"]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: ["dev", "main"]
   # Manual re-run: pick a feat/fix branch (feature stage) or dev (release stage).
   workflow_dispatch:
 
@@ -32,31 +30,21 @@ permissions:
   pull-requests: write
   issues: write
 
-# One group per head branch. A push and a hand-opened pull request for that
-# branch must not merge the same pull request twice. The later run no-ops when
-# that pull request is already merged.
+# One group per branch. A push and a manual re-run for that branch must not
+# merge the same pull request twice. The later run no-ops when that pull
+# request is already merged.
 concurrency:
-  group: pipeline-${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+  group: pipeline-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   feature:
     name: Feature → dev
-    # Push or dispatch of feat/** or fix/**, or a pull request into dev from those branches.
-    # github.ref_name on pull_request is "<number>/merge", which is not a real branch.
-    if: >-
-      (
-        github.event_name != 'pull_request' &&
-        github.ref_name != 'dev' &&
-        github.ref_name != 'main'
-      ) || (
-        github.event_name == 'pull_request' &&
-        github.base_ref == 'dev' &&
-        (startsWith(github.head_ref, 'feat/') || startsWith(github.head_ref, 'fix/'))
-      )
+    # Push or dispatch of feat/** or fix/**.
+    if: github.ref_name != 'dev' && github.ref_name != 'main'
     uses: ./.github/workflows/stage.yml
     with:
-      head: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      head: ${{ github.ref_name }}
       base: dev
       kind: feature
       delete_branch: false
@@ -66,22 +54,12 @@ jobs:
   release:
     name: Dev → main
     needs: feature
-    # After a feature merge in this same run, or when this event is already dev → main.
+    # After a feature merge in this same run, or when this run is on dev itself.
     # A GITHUB_TOKEN merge does not start a new workflow, so this cannot wait for a push to dev.
     if: >-
       always() && (
         needs.feature.outputs.merged == 'true' ||
-        (
-          needs.feature.result == 'skipped' &&
-          (
-            github.ref_name == 'dev' ||
-            (
-              github.event_name == 'pull_request' &&
-              github.base_ref == 'main' &&
-              github.head_ref == 'dev'
-            )
-          )
-        )
+        (needs.feature.result == 'skipped' && github.ref_name == 'dev')
       )
     uses: ./.github/workflows/stage.yml
     with:
@@ -107,7 +85,7 @@ jobs:
       - name: Delete merged feature branch
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          HEAD: ${{ github.ref_name }}
         run: |
           case "$HEAD" in
             feat/*|fix/*) ;;
